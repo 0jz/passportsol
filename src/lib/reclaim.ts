@@ -38,7 +38,7 @@ export async function startReclaimVerification(
       const stamp = (proof as { claimData?: { provider?: string } })?.claimData?.provider ?? providerId
       onSuccess(stamp)
     },
-    onFailure: (err: Error) => onFailure(err),
+    onError: (err: Error) => onFailure(err),
   })
 
   return url
