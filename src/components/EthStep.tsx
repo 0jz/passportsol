@@ -93,7 +93,7 @@ export default function EthStep({ solanaAddress, onDone }: Props) {
   }, [manualAddress, onDone])
 
   const handleSkip = useCallback(() => {
-    onDone({ ethAddress: null!, score: 0, stamps: [], lastUpdated: new Date().toISOString() })
+    onDone({ ethAddress: null!, score: 0, threshold: 20, stamps: [], lastUpdated: new Date().toISOString() })
   }, [onDone])
 
   if (loading) {
