@@ -17,23 +17,32 @@ export default function App() {
 
   const [page, setPage] = useState<Page>('mint')
   const [passport, setPassport] = useState<PassportData | null>(null)
-  const [reclaimDone, setReclaimDone] = useState(false)
   const [txHash, setTxHash] = useState<string | null>(null)
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [addingStamps, setAddingStamps] = useState(false)
 
   const step: Step =
-    txHash       ? 4 :
-    reclaimDone  ? 3 :
-    passport     ? 2 :
+    txHash ? 4 :
+    passport ? 3 :
     wallet.connected ? 1 : 0
 
-  const handleReclaimDone = useCallback((stamps: string[]) => {
-    if (stamps.length > 0 && passport) {
-      setPassport(prev => prev ? { ...prev, stamps: [...prev.stamps, ...stamps] } : prev)
+  const handleReclaimDone = useCallback(async (newStamps: string[]) => {
+    setAddingStamps(false)
+    if (!passport || newStamps.length === 0) return
+    const updated = { ...passport, stamps: [...passport.stamps, ...newStamps] }
+    setPassport(updated)
+    setError(null)
+    try {
+      setLoading('Re-minting passport with new stamps...')
+      const txid = await mintPassportMemo(wallet, connection, updated)
+      setTxHash(txid)
+    } catch (e) {
+      setError((e as { message?: string })?.message ?? String(e))
+    } finally {
+      setLoading(null)
     }
-    setReclaimDone(true)
-  }, [passport])
+  }, [passport, wallet, connection])
 
   const mintPassport = useCallback(async () => {
     if (!passport) return
@@ -118,25 +127,8 @@ export default function App() {
               )}
             </StepCard>
 
-            {/* Step 3 — optional Reclaim */}
-            <StepCard number={3} title="Verify Web2 Identity" badge="optional" done={step >= 3} active={step === 2} locked={step < 2}>
-              {step === 2 && (
-                <ReclaimStep onDone={handleReclaimDone} />
-              )}
-              {reclaimDone && passport && passport.stamps.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {passport.stamps.map(s => (
-                    <span key={s} className="text-xs bg-zinc-800 border border-zinc-700 text-zinc-300 px-2 py-0.5 rounded-full">{s}</span>
-                  ))}
-                </div>
-              )}
-              {reclaimDone && (!passport || passport.stamps.length === 0) && (
-                <p className="text-xs text-zinc-500">Skipped — no web2 stamps</p>
-              )}
-            </StepCard>
-
-            {/* Step 4 — mint */}
-            <StepCard number={4} title="Mint Passport On-Chain" done={step >= 4} active={step === 3} locked={step < 3}>
+            {/* Step 3 — mint */}
+            <StepCard number={3} title="Mint Passport On-Chain" done={step >= 4} active={step === 3} locked={step < 3}>
               {step === 3 && !txHash && (
                 <button
                   onClick={mintPassport}
@@ -152,8 +144,22 @@ export default function App() {
 
           {/* Success */}
           {txHash && passport && (
-            <div className="mt-4">
+            <div className="mt-4 space-y-3">
               <SuccessCard passport={passport} txHash={txHash} />
+              {!addingStamps && (
+                <button
+                  onClick={() => setAddingStamps(true)}
+                  className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm px-4 py-2.5 rounded-lg transition-colors"
+                >
+                  + Add Web2 Stamps via Reclaim
+                </button>
+              )}
+              {addingStamps && (
+                <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-5">
+                  <p className="text-sm font-medium mb-3">Verify Web2 Identity</p>
+                  <ReclaimStep onDone={handleReclaimDone} />
+                </div>
+              )}
             </div>
           )}
 
