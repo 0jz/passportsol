@@ -4,6 +4,7 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import { type PassportData } from './lib/gitcoin'
 import { mintPassportMemo } from './lib/solana'
 import EthStep from './components/EthStep'
+import ReclaimStep from './components/ReclaimStep'
 import SuccessCard from './components/SuccessCard'
 import VerifyPage from './components/VerifyPage'
 
@@ -16,14 +17,23 @@ export default function App() {
 
   const [page, setPage] = useState<Page>('mint')
   const [passport, setPassport] = useState<PassportData | null>(null)
+  const [reclaimDone, setReclaimDone] = useState(false)
   const [txHash, setTxHash] = useState<string | null>(null)
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const step: Step =
-    txHash ? 4 :
-    passport ? 3 :
+    txHash       ? 4 :
+    reclaimDone  ? 3 :
+    passport     ? 2 :
     wallet.connected ? 1 : 0
+
+  const handleReclaimDone = useCallback((stamps: string[]) => {
+    if (stamps.length > 0 && passport) {
+      setPassport(prev => prev ? { ...prev, stamps: [...prev.stamps, ...stamps] } : prev)
+    }
+    setReclaimDone(true)
+  }, [passport])
 
   const mintPassport = useCallback(async () => {
     if (!passport) return
@@ -94,7 +104,7 @@ export default function App() {
 
             {/* Step 2 — optional ETH */}
             <StepCard number={2} title="Link Ethereum Identity" badge="optional" done={step >= 2} active={step === 1} locked={step < 1}>
-              {step >= 1 && step < 3 && !passport && (
+              {step === 1 && (
                 <EthStep
                   solanaAddress={wallet.publicKey?.toBase58() ?? ''}
                   onDone={setPassport}
@@ -108,8 +118,25 @@ export default function App() {
               )}
             </StepCard>
 
-            {/* Step 3 — mint */}
-            <StepCard number={3} title="Mint Passport On-Chain" done={step >= 4} active={step === 3} locked={step < 3}>
+            {/* Step 3 — optional Reclaim */}
+            <StepCard number={3} title="Verify Web2 Identity" badge="optional" done={step >= 3} active={step === 2} locked={step < 2}>
+              {step === 2 && (
+                <ReclaimStep onDone={handleReclaimDone} />
+              )}
+              {reclaimDone && passport && passport.stamps.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {passport.stamps.map(s => (
+                    <span key={s} className="text-xs bg-zinc-800 border border-zinc-700 text-zinc-300 px-2 py-0.5 rounded-full">{s}</span>
+                  ))}
+                </div>
+              )}
+              {reclaimDone && (!passport || passport.stamps.length === 0) && (
+                <p className="text-xs text-zinc-500">Skipped — no web2 stamps</p>
+              )}
+            </StepCard>
+
+            {/* Step 4 — mint */}
+            <StepCard number={4} title="Mint Passport On-Chain" done={step >= 4} active={step === 3} locked={step < 3}>
               {step === 3 && !txHash && (
                 <button
                   onClick={mintPassport}
