@@ -13,7 +13,7 @@ function isSolAddress(addr: string) {
 export default function VerifyPage() {
   const { connection } = useConnection()
   const [address, setAddress] = useState('')
-  const [result, setResult] = useState<{ score: number; stamps: string[]; ts: number; eth?: string } | 'not_found' | null>(null)
+  const [result, setResult] = useState<{ score: number; threshold?: number; stamps: string[]; ts: number; eth?: string } | 'not_found' | null>(null)
   const [loading, setLoading] = useState(false)
   const [inputError, setInputError] = useState<string | null>(null)
 
@@ -43,8 +43,8 @@ export default function VerifyPage() {
     }
   }, [address, connection])
 
-  const THRESHOLD = 20
-  const isVerified = result && result !== 'not_found' && result.score >= THRESHOLD
+  const threshold = (result && result !== 'not_found' ? result.threshold : undefined) ?? 20
+  const isVerified = result && result !== 'not_found' && result.score >= threshold
 
   return (
     <div className="max-w-lg mx-auto px-4 py-16">
@@ -110,7 +110,7 @@ export default function VerifyPage() {
                 </span>
               ) : (
                 <span className="inline-block text-xs font-medium px-3 py-1 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
-                  Below {THRESHOLD} threshold
+                  Below {threshold} threshold
                 </span>
               )}
             </div>

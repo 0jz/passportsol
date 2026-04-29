@@ -5,12 +5,14 @@ const SCORER_ID = import.meta.env.VITE_GITCOIN_SCORER_ID as string | undefined
 export interface PassportData {
   ethAddress: string
   score: number
+  threshold: number
   stamps: string[]
   lastUpdated: string
 }
 
 const MOCK_DATA = {
   score: 24.5,
+  threshold: 20,
   stamps: ['GitHub', 'Twitter', 'ENS', 'BrightID', 'Coinbase'],
   lastUpdated: new Date().toISOString(),
 }
@@ -49,6 +51,7 @@ export async function fetchPassport(ethAddress: string): Promise<PassportData> {
   return {
     ethAddress,
     score: parseFloat(scoreData.score ?? '0'),
+    threshold: parseFloat(scoreData.evidence?.threshold ?? '20'),
     stamps: (stampsData.items ?? []).map(
       (s: { credential: { credentialSubject: { provider: string } } }) =>
         s.credential.credentialSubject.provider

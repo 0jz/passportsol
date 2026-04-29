@@ -5,10 +5,9 @@ interface Props {
   txHash: string
 }
 
-const THRESHOLD = 20
-
 export default function SuccessCard({ passport, txHash }: Props) {
-  const isVerified = passport.score >= THRESHOLD
+  const threshold = passport.threshold
+  const isVerified = passport.score >= threshold
   const short = (s: string) => `${s.slice(0, 6)}...${s.slice(-4)}`
 
   return (
@@ -39,7 +38,7 @@ export default function SuccessCard({ passport, txHash }: Props) {
               </span>
             ) : (
               <span className="inline-block text-xs font-medium px-2 py-1 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
-                Below {THRESHOLD} threshold
+                Below {threshold} threshold
               </span>
             )}
           </div>
