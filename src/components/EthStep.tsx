@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { getAddress } from 'ethers'
-import { fetchPassport, type PassportData } from '../lib/gitcoin'
+import { fetchPassport, fetchScorerThreshold, type PassportData } from '../lib/gitcoin'
 import { createVerificationMessage, signWithMetaMask } from '../lib/siwe'
 
 interface EthProvider {
@@ -92,8 +92,9 @@ export default function EthStep({ solanaAddress, onDone }: Props) {
     }
   }, [manualAddress, onDone])
 
-  const handleSkip = useCallback(() => {
-    onDone({ ethAddress: null!, score: 0, threshold: 20, stamps: [], lastUpdated: new Date().toISOString() })
+  const handleSkip = useCallback(async () => {
+    const threshold = await fetchScorerThreshold()
+    onDone({ ethAddress: null!, score: 0, threshold, stamps: [], lastUpdated: new Date().toISOString() })
   }, [onDone])
 
   if (loading) {

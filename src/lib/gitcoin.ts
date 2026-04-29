@@ -17,6 +17,21 @@ const MOCK_DATA = {
   lastUpdated: new Date().toISOString(),
 }
 
+export async function fetchScorerThreshold(): Promise<number> {
+  if (!API_KEY || !SCORER_ID) return 20
+  try {
+    const res = await fetch(`${API_BASE}/registry/scorer/${SCORER_ID}`, {
+      headers: { 'X-API-Key': API_KEY },
+    })
+    if (!res.ok) return 20
+    const data = await res.json()
+    const raw = data.score_threshold ?? data.threshold ?? data.scoreThreshold
+    return raw ? parseFloat(raw) : 20
+  } catch {
+    return 20
+  }
+}
+
 async function submitPassport(ethAddress: string, headers: Record<string, string>): Promise<void> {
   await fetch(`${API_BASE}/registry/submit-passport`, {
     method: 'POST',
