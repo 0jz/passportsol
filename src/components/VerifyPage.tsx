@@ -43,7 +43,8 @@ export default function VerifyPage() {
     }
   }, [address, connection])
 
-  const isVerified = result && result !== 'not_found' && result.score >= 20
+  const THRESHOLD = 20
+  const isVerified = result && result !== 'not_found' && result.score >= THRESHOLD
 
   return (
     <div className="max-w-lg mx-auto px-4 py-16">
@@ -109,7 +110,7 @@ export default function VerifyPage() {
                 </span>
               ) : (
                 <span className="inline-block text-xs font-medium px-3 py-1 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
-                  Score &lt; 20
+                  Below {THRESHOLD} threshold
                 </span>
               )}
             </div>
