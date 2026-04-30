@@ -87,7 +87,6 @@ export default function StampsStep({ passport, onDone }: Props) {
 
       {/* Farcaster */}
       {passport.ethAddress && (
-        <StampRow label="Farcaster" description="On-chain social identity" state={farcaster} />
       )}
 
       {/* GitHub */}
