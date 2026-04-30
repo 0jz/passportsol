@@ -5,6 +5,7 @@ import { lookupEns } from '../lib/ens'
 import { analyzeSolanaWallet } from '../lib/solanaStats'
 import { parseLumaSlug, parseAttestation, verifyAttestation, parseIcs, parseIcsFeed, parsePkpass } from '../lib/attestation'
 import { lookupSolDomain } from '../lib/sns'
+import QrScanner from './QrScanner'
 import { lookupSolanaId } from '../lib/solanaid'
 import type { PassportData } from '../lib/gitcoin'
 
@@ -36,6 +37,7 @@ export default function StampsStep({ passport, onDone }: Props) {
   const [eventError, setEventError] = useState<string | null>(null)
   const [lumaLoading, setLumaLoading] = useState(false)
   const [lumaInput, setLumaInput] = useState('')
+  const [scanning, setScanning] = useState(false)
 
   // Only add if not already in passport
   const addStamp = useCallback((stamp: string) => {
@@ -116,6 +118,26 @@ export default function StampsStep({ passport, onDone }: Props) {
     addStamp(stamp)
     setEventInput('')
   }, [passport.stamps, verified, addStamp])
+
+  const handleQrResult = useCallback((data: string) => {
+    setScanning(false)
+    setEventError(null)
+    const slug = parseLumaSlug(data)
+    if (slug) {
+      addEventStamp(slug)
+      return
+    }
+    const attest = parseAttestation(data)
+    if (attest) {
+      verifyAttestation(attest, wallet.publicKey?.toBase58() ?? '').then(result => {
+        if (!result.ok) { setEventError(result.reason ?? 'Verifikacija neuspešna'); return }
+        const issuerSuffix = result.issuerName ? ` · ${result.issuerName}` : ''
+        addStamp(`Event: ${attest.event}${issuerSuffix}`)
+      })
+      return
+    }
+    setEventError(`QR nije prepoznat kao Luma event: ${data.slice(0, 60)}`)
+  }, [addEventStamp, addStamp, wallet.publicKey])
 
   const handleLumaImport = useCallback(async () => {
     const input = lumaInput.trim()
@@ -262,6 +284,19 @@ export default function StampsStep({ passport, onDone }: Props) {
             ))}
           </div>
         )}
+        {/* QR scanner */}
+        {scanning ? (
+          <QrScanner onResult={handleQrResult} onClose={() => setScanning(false)} />
+        ) : (
+          <button
+            onClick={() => { setScanning(true); setEventError(null) }}
+            className="w-full flex items-center justify-center gap-2 text-xs px-3 py-2 rounded-lg font-medium transition-colors"
+            style={{ background: '#3f3f46', color: '#d4d4d8' }}
+          >
+            <span>📷</span> Skeniraj QR kod sa tiketa
+          </button>
+        )}
+
         {/* Luma calendar import */}
         <div className="flex gap-2">
           <input
