@@ -11,7 +11,7 @@ interface Props {
 }
 
 interface StampState {
-  status: 'idle' | 'checking' | 'found' | 'not_found' | 'error'
+  status: 'idle' | 'checking' | 'found' | 'not_found' | 'error' | 'already_added'
   value?: string
 }
 
@@ -27,22 +27,34 @@ export default function StampsStep({ passport, onDone }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Only add if not already in passport
   const addStamp = useCallback((stamp: string) => {
+    if (passport.stamps.includes(stamp)) return
     setVerified(prev => prev.includes(stamp) ? prev : [...prev, stamp])
-  }, [])
+  }, [passport.stamps])
 
   // Auto-detect ENS
   useEffect(() => {
     if (!passport.ethAddress) return
+    const existing = passport.stamps.find(s => /^ENS:/.test(s))
+    if (existing) {
+      setEns({ status: 'already_added', value: existing.replace('ENS: ', '') })
+      return
+    }
     lookupEns(passport.ethAddress).then(name => {
       if (name) { setEns({ status: 'found', value: name }); addStamp(`ENS: ${name}`) }
       else setEns({ status: 'not_found' })
     })
-  }, [passport.ethAddress, addStamp])
+  }, [passport.ethAddress, passport.stamps, addStamp])
 
   // Auto-detect Solana stats
   useEffect(() => {
     if (!wallet.publicKey) return
+    const existingSolana = passport.stamps.filter(s => s.startsWith('Solana'))
+    if (existingSolana.length > 0) {
+      setSolana({ status: 'already_added', value: existingSolana.join(', ') })
+      return
+    }
     analyzeSolanaWallet(wallet.publicKey.toBase58(), connection).then(stats => {
       if (stats.stamps.length > 0) {
         setSolana({ status: 'found', value: stats.stamps.join(', ') })
@@ -51,7 +63,9 @@ export default function StampsStep({ passport, onDone }: Props) {
         setSolana({ status: 'not_found' })
       }
     }).catch(() => setSolana({ status: 'error' }))
-  }, [wallet.publicKey, connection, addStamp])
+  }, [wallet.publicKey, connection, passport.stamps, addStamp])
+
+  const hasGithubStamp = passport.stamps.some(s => /^GitHub:/.test(s))
 
   const startGithub = useCallback(async () => {
     setError(null)
@@ -91,10 +105,11 @@ export default function StampsStep({ passport, onDone }: Props) {
             <span className="text-sm font-medium text-white">GitHub</span>
             <span className="text-xs text-zinc-500 ml-2">Device flow verification</span>
           </div>
-          {githubStep === 'done' && (
+          {hasGithubStamp ? (
+            <span className="text-xs font-medium text-zinc-500">✓ Already added</span>
+          ) : githubStep === 'done' ? (
             <span className="text-xs font-medium" style={{ color: '#14F195' }}>✓ Verified</span>
-          )}
-          {githubStep === 'idle' && (
+          ) : githubStep === 'idle' ? (
             <button
               onClick={startGithub}
               disabled={loading}
@@ -103,8 +118,7 @@ export default function StampsStep({ passport, onDone }: Props) {
             >
               Connect
             </button>
-          )}
-          {(githubStep === 'code' || githubStep === 'polling') && (
+          ) : (
             <span className="text-xs text-zinc-400">Waiting...</span>
           )}
         </div>
@@ -164,6 +178,9 @@ function StampRow({ label, description, state }: {
       {state.status === 'checking' && <span className="text-xs text-zinc-500">Checking...</span>}
       {state.status === 'found' && (
         <span className="text-xs font-medium truncate max-w-32" style={{ color: '#14F195' }}>✓ {state.value}</span>
+      )}
+      {state.status === 'already_added' && (
+        <span className="text-xs font-medium text-zinc-500">✓ Already added</span>
       )}
       {state.status === 'not_found' && <span className="text-xs text-zinc-600">Not found</span>}
       {state.status === 'error' && <span className="text-xs text-red-500">Error</span>}

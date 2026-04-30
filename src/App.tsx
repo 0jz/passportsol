@@ -43,11 +43,12 @@ export default function App() {
     setAddingStamps(false)
     if (!passport || newStamps.length === 0) return
     const updated = { ...passport, stamps: [...passport.stamps, ...newStamps] }
-    setPassport(updated)
     setError(null)
     try {
       setLoading('Re-minting passport with new stamps...')
       const txid = await mintPassportMemo(wallet, connection, updated)
+      // Update passport and score only after transaction confirms
+      setPassport(updated)
       setTxHash(txid)
     } catch (e) {
       setError((e as { message?: string })?.message ?? String(e))
