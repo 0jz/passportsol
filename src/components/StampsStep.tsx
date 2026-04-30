@@ -38,6 +38,7 @@ export default function StampsStep({ passport, onDone }: Props) {
   const [lumaLoading, setLumaLoading] = useState(false)
   const [lumaInput, setLumaInput] = useState('')
   const [scanning, setScanning] = useState(false)
+  const [lastQrRaw, setLastQrRaw] = useState<string | null>(null)
 
   // Only add if not already in passport
   const addStamp = useCallback((stamp: string) => {
@@ -122,6 +123,7 @@ export default function StampsStep({ passport, onDone }: Props) {
   const handleQrResult = useCallback((data: string) => {
     setScanning(false)
     setEventError(null)
+    setLastQrRaw(data)
     const slug = parseLumaSlug(data)
     if (slug) {
       addEventStamp(slug)
@@ -136,7 +138,7 @@ export default function StampsStep({ passport, onDone }: Props) {
       })
       return
     }
-    setEventError(`QR nije prepoznat kao Luma event: ${data.slice(0, 60)}`)
+    setEventError('QR nije prepoznat kao Luma event')
   }, [addEventStamp, addStamp, wallet.publicKey])
 
   const handleLumaImport = useCallback(async () => {
@@ -289,12 +291,18 @@ export default function StampsStep({ passport, onDone }: Props) {
           <QrScanner onResult={handleQrResult} onClose={() => setScanning(false)} />
         ) : (
           <button
-            onClick={() => { setScanning(true); setEventError(null) }}
+            onClick={() => { setScanning(true); setEventError(null); setLastQrRaw(null) }}
             className="w-full flex items-center justify-center gap-2 text-xs px-3 py-2 rounded-lg font-medium transition-colors"
             style={{ background: '#3f3f46', color: '#d4d4d8' }}
           >
             <span>📷</span> Skeniraj QR kod sa tiketa
           </button>
+        )}
+        {lastQrRaw && (
+          <div className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 space-y-1">
+            <p className="text-xs text-zinc-500">Skenirani sadržaj:</p>
+            <p className="text-xs text-zinc-300 font-mono break-all">{lastQrRaw}</p>
+          </div>
         )}
 
         {/* Luma calendar import */}
