@@ -68,7 +68,9 @@ export default function StampsStep({ passport, onDone }: Props) {
         setSolana({ status: 'found', value: stats.stamps.join(', ') })
         stats.stamps.forEach(addStamp)
       } else {
-        setSolana({ status: 'not_found' })
+        const months = Math.floor(stats.walletAgeMonths)
+        const ageLabel = months < 1 ? '< 1 month old' : months < 12 ? `${months}m old` : `${Math.floor(months / 12)}y old`
+        setSolana({ status: 'not_found', value: stats.walletAgeMonths > 0 ? ageLabel : undefined })
       }
     }).catch(() => setSolana({ status: 'error' }))
   }, [wallet.publicKey, connection, passport.stamps, addStamp])
@@ -190,7 +192,9 @@ function StampRow({ label, description, state }: {
       {state.status === 'already_added' && (
         <span className="text-xs font-medium text-zinc-500">✓ Already added</span>
       )}
-      {state.status === 'not_found' && <span className="text-xs text-zinc-600">Not found</span>}
+      {state.status === 'not_found' && (
+        <span className="text-xs text-zinc-500">{state.value ?? 'Not found'}</span>
+      )}
       {state.status === 'error' && <span className="text-xs text-red-500">Error</span>}
     </div>
   )

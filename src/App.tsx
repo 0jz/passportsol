@@ -193,7 +193,7 @@ export default function App() {
                   <div className="flex items-start gap-2 bg-amber-950/40 border border-amber-800/50 rounded-lg px-3 py-2">
                     <span className="text-amber-400 text-sm mt-0.5">⚠</span>
                     <p className="text-xs text-amber-300/90">
-                      Adding stamps requires a new on-chain transaction. A small network fee (~0.000005 SOL) will be charged for each update.
+                      Adding stamps requires a new on-chain transaction. A small network fee will be charged for each update.
                     </p>
                   </div>
                   <p className="text-sm font-medium text-white">Add Stamps</p>
