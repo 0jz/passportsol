@@ -4,13 +4,11 @@ import { requestDeviceCode, pollForToken, fetchGithubUser } from '../lib/githubO
 import { lookupEns } from '../lib/ens'
 import { lookupFarcasterByEth } from '../lib/farcaster'
 import { analyzeSolanaWallet } from '../lib/solanaStats'
-import { startTwitterAuth } from '../lib/twitterOAuth'
 import type { PassportData } from '../lib/gitcoin'
 
 interface Props {
   passport: PassportData
   onDone: (stamps: string[]) => void
-  preVerifiedTwitter?: string
 }
 
 interface StampState {
@@ -18,7 +16,7 @@ interface StampState {
   value?: string
 }
 
-export default function StampsStep({ passport, onDone, preVerifiedTwitter }: Props) {
+export default function StampsStep({ passport, onDone }: Props) {
   const wallet = useWallet()
   const { connection } = useConnection()
 
@@ -26,10 +24,6 @@ export default function StampsStep({ passport, onDone, preVerifiedTwitter }: Pro
   const [ens, setEns] = useState<StampState>({ status: passport.ethAddress ? 'checking' : 'idle' })
   const [farcaster, setFarcaster] = useState<StampState>({ status: passport.ethAddress ? 'checking' : 'idle' })
   const [solana, setSolana] = useState<StampState>({ status: wallet.publicKey ? 'checking' : 'idle' })
-  const [twitter, setTwitter] = useState<StampState>({
-    status: preVerifiedTwitter ? 'found' : 'idle',
-    value: preVerifiedTwitter,
-  })
   const [githubStep, setGithubStep] = useState<'idle' | 'code' | 'polling' | 'done'>('idle')
   const [userCode, setUserCode] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -70,11 +64,6 @@ export default function StampsStep({ passport, onDone, preVerifiedTwitter }: Pro
     }).catch(() => setSolana({ status: 'error' }))
   }, [wallet.publicKey, connection, addStamp])
 
-  // Pre-verified Twitter from OAuth callback
-  useEffect(() => {
-    if (preVerifiedTwitter) addStamp(`Twitter: ${preVerifiedTwitter}`)
-  }, [preVerifiedTwitter, addStamp])
-
   const startGithub = useCallback(async () => {
     setError(null)
     setLoading(true)
@@ -97,17 +86,6 @@ export default function StampsStep({ passport, onDone, preVerifiedTwitter }: Pro
     }
   }, [addStamp])
 
-  const connectTwitter = useCallback(async () => {
-    setError(null)
-    try {
-      // Save state before redirect
-      sessionStorage.setItem('tw_return_adding_stamps', '1')
-      await startTwitterAuth()
-    } catch (e) {
-      setError((e as Error).message)
-    }
-  }, [])
-
   return (
     <div className="space-y-2">
       {/* Solana stats */}
@@ -122,25 +100,6 @@ export default function StampsStep({ passport, onDone, preVerifiedTwitter }: Pro
       {passport.ethAddress && (
         <StampRow label="Farcaster" description="On-chain social identity" state={farcaster} />
       )}
-
-      {/* Twitter */}
-      <div className="flex items-center justify-between bg-zinc-800 rounded-lg px-4 py-2.5">
-        <div>
-          <span className="text-sm font-medium text-white">Twitter / X</span>
-          <span className="text-xs text-zinc-500 ml-2">OAuth verified account</span>
-        </div>
-        {twitter.status === 'found' && (
-          <span className="text-xs font-medium" style={{ color: '#14F195' }}>✓ @{twitter.value}</span>
-        )}
-        {twitter.status === 'idle' && (
-          <button
-            onClick={connectTwitter}
-            className="text-xs font-medium px-3 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white transition-colors"
-          >
-            Connect
-          </button>
-        )}
-      </div>
 
       {/* GitHub */}
       <div className="bg-zinc-800 rounded-lg px-4 py-2.5 space-y-2">
