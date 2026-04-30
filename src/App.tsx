@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import { type PassportData } from './lib/gitcoin'
-import { mintPassportMemo, getPassportFromChain } from './lib/solana'
+import { mintPassportMemo, getPassportFromChain, invalidatePassport } from './lib/solana'
 import EthStep from './components/EthStep'
 import StampsStep from './components/StampsStep'
 import SuccessCard from './components/SuccessCard'
@@ -144,19 +144,29 @@ export default function App() {
     }
   }, [wallet, connection, passport])
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback(async () => {
     if (!pubkeyStr) return
     if (!window.confirm(
-      'Ovo će ukloniti pasoš iz ovog browsera.\nTransakcija ostaje na Solana lancu i ne može se obrisati.'
+      'Ovo će poništiti pasoš na ovoj Solana adresi.\n\n' +
+      'Biće kreirana nova on-chain transakcija (mali network fee).\n' +
+      'Nakon toga možeš mintovati potpuno novi pasoš.'
     )) return
-    clearStored(pubkeyStr)
-    setPassport(null)
-    setTxHash(null)
-    setStampsReady(false)
-    setCustomStamps([])
-    setAddingStamps(false)
     setError(null)
-  }, [pubkeyStr])
+    try {
+      setLoading('Poništavam pasoš...')
+      await invalidatePassport(wallet, connection)
+      clearStored(pubkeyStr)
+      setPassport(null)
+      setTxHash(null)
+      setStampsReady(false)
+      setCustomStamps([])
+      setAddingStamps(false)
+    } catch (e) {
+      setError((e as { message?: string })?.message ?? String(e))
+    } finally {
+      setLoading(null)
+    }
+  }, [pubkeyStr, wallet, connection])
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
@@ -292,9 +302,10 @@ export default function App() {
 
               <button
                 onClick={handleDelete}
-                className="w-full text-zinc-600 hover:text-red-400 text-xs py-1 transition-colors"
+                disabled={!!loading}
+                className="w-full text-zinc-600 hover:text-red-400 text-xs py-1 transition-colors disabled:opacity-40"
               >
-                Reset passport data from this browser
+                Delete Passport
               </button>
             </div>
           )}

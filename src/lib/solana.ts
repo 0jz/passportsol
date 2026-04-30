@@ -24,30 +24,20 @@ export async function ensureDevnetSol(
   }
 }
 
-export async function mintPassportMemo(
+// Shared: sign and send a memo transaction, return the txid
+async function sendMemo(
   wallet: WalletContextState,
   connection: Connection,
-  passport: PassportData,
+  data: object,
 ): Promise<string> {
-  if (!wallet.publicKey || !wallet.signTransaction) {
-    throw new Error('Wallet nije connectan')
-  }
+  if (!wallet.publicKey || !wallet.signTransaction) throw new Error('Wallet nije connectan')
 
   await ensureDevnetSol(wallet, connection)
-
-  const memoData = JSON.stringify({
-    v: 1,
-    eth: passport.ethAddress ?? null,
-    score: passport.score,
-    threshold: passport.threshold,
-    stamps: passport.stamps.slice(0, 20),
-    ts: Math.floor(Date.now() / 1000),
-  })
 
   const instruction = new TransactionInstruction({
     keys: [{ pubkey: wallet.publicKey, isSigner: true, isWritable: false }],
     programId: MEMO_PROGRAM_ID,
-    data: Buffer.from(memoData, 'utf8'),
+    data: Buffer.from(JSON.stringify(data), 'utf8'),
   })
 
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash()
@@ -59,7 +49,6 @@ export async function mintPassportMemo(
 
   const signed = await wallet.signTransaction(transaction)
 
-  // Extract txid from signed tx before sending — so we have it even if send fails
   const rawSig = signed.signatures[0]?.signature
   if (!rawSig) throw new Error('Transaction signing failed')
   const txid = bs58.encode(rawSig)
@@ -68,15 +57,40 @@ export async function mintPassportMemo(
     await connection.sendRawTransaction(signed.serialize(), { skipPreflight: true, maxRetries: 5 })
   } catch (e) {
     const msg = (e as Error)?.message ?? ''
-    // Already processed = transaction confirmed on a previous attempt, treat as success
-    if (msg.includes('already been processed')) {
-      return txid
-    }
+    if (msg.includes('already been processed')) return txid
     throw e
   }
 
   await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight })
   return txid
+}
+
+export async function mintPassportMemo(
+  wallet: WalletContextState,
+  connection: Connection,
+  passport: PassportData,
+): Promise<string> {
+  return sendMemo(wallet, connection, {
+    v: 1,
+    eth: passport.ethAddress ?? null,
+    score: passport.score,
+    threshold: passport.threshold,
+    stamps: passport.stamps.slice(0, 20),
+    ts: Math.floor(Date.now() / 1000),
+  })
+}
+
+// Mints an invalidation memo — getPassportFromChain will treat this wallet
+// as having no passport until a new one is minted after this transaction.
+export async function invalidatePassport(
+  wallet: WalletContextState,
+  connection: Connection,
+): Promise<void> {
+  await sendMemo(wallet, connection, {
+    v: 1,
+    invalidated: true,
+    ts: Math.floor(Date.now() / 1000),
+  })
 }
 
 export async function getPassportFromChain(
@@ -99,7 +113,10 @@ export async function getPassportFromChain(
           try {
             const content = memoMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\')
             const data = JSON.parse(content)
-            if (data.v === 1) return { ...data, txSig: sig.signature }
+            if (data.v !== 1) continue
+            // Invalidation memo found — wallet has no active passport
+            if (data.invalidated) return null
+            return { ...data, txSig: sig.signature }
           } catch {
             // not our memo, skip
           }
