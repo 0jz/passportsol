@@ -3,6 +3,7 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { requestDeviceCode, pollForToken, fetchGithubUser } from '../lib/githubOAuth'
 import { lookupEns } from '../lib/ens'
 import { analyzeSolanaWallet } from '../lib/solanaStats'
+import { parseLumaSlug, parseAttestation, verifyAttestation, parseIcs, parsePkpass } from '../lib/attestation'
 import type { PassportData } from '../lib/gitcoin'
 
 interface Props {
@@ -26,6 +27,9 @@ export default function StampsStep({ passport, onDone }: Props) {
   const [userCode, setUserCode] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [eventInput, setEventInput] = useState('')
+  const [eventStatus, setEventStatus] = useState<'idle' | 'verifying' | 'error'>('idle')
+  const [eventError, setEventError] = useState<string | null>(null)
   const autoProceedFired = useRef(false)
 
   // Only add if not already in passport
@@ -82,6 +86,78 @@ export default function StampsStep({ passport, onDone }: Props) {
     onDone(verified)
   }, [allManualHandled, verified, onDone])
 
+  const addEventStamp = useCallback((name: string) => {
+    const stamp = `Event?: ${name}`
+    if (passport.stamps.includes(stamp) || verified.includes(stamp)) {
+      setEventError('Ovaj event je već dodat')
+      return
+    }
+    addStamp(stamp)
+    setEventInput('')
+  }, [passport.stamps, verified, addStamp])
+
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setEventError(null)
+    e.target.value = ''
+
+    if (file.name.endsWith('.ics')) {
+      const text = await file.text()
+      const name = parseIcs(text)
+      if (!name) { setEventError('Nije pronađen naziv eventa u .ics fajlu'); return }
+      addEventStamp(name)
+      return
+    }
+
+    if (file.name.endsWith('.pkpass')) {
+      const name = await parsePkpass(file)
+      if (!name) { setEventError('Nije pronađen naziv eventa u .pkpass fajlu'); return }
+      addEventStamp(name)
+      return
+    }
+
+    setEventError('Podržani formati: .ics, .pkpass')
+  }, [addEventStamp])
+
+  const handleEventSubmit = useCallback(async () => {
+    const input = eventInput.trim()
+    if (!input) return
+    setEventError(null)
+    setEventStatus('idle')
+
+    const slug = parseLumaSlug(input)
+    if (slug) {
+      addEventStamp(slug)
+      return
+    }
+
+    const attest = parseAttestation(input)
+    if (!attest) {
+      setEventError('Unesi Luma URL (lu.ma/...) ili atestaciju u JSON formatu')
+      return
+    }
+
+    setEventStatus('verifying')
+    const result = await verifyAttestation(attest, wallet.publicKey?.toBase58() ?? '')
+    if (!result.ok) {
+      setEventError(result.reason ?? 'Verifikacija neuspešna')
+      setEventStatus('error')
+      return
+    }
+
+    const issuerSuffix = result.issuerName ? ` · ${result.issuerName}` : ''
+    const stamp = `Event: ${attest.event}${issuerSuffix}`
+    if (passport.stamps.includes(stamp) || verified.includes(stamp)) {
+      setEventError('Ovaj event je već dodat')
+      setEventStatus('idle')
+      return
+    }
+    addStamp(stamp)
+    setEventInput('')
+    setEventStatus('idle')
+  }, [eventInput, passport.stamps, verified, addStamp, wallet.publicKey])
+
   const startGithub = useCallback(async () => {
     setError(null)
     setLoading(true)
@@ -112,6 +188,60 @@ export default function StampsStep({ passport, onDone }: Props) {
       {passport.ethAddress && (
         <StampRow label="ENS" description="Ethereum Name Service" state={ens} />
       )}
+
+      {/* Events */}
+      <div className="bg-zinc-800 rounded-lg px-4 py-2.5 space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-sm font-medium text-white">Events</span>
+            <span className="text-xs text-zinc-500 ml-2">Hackathons & conferences</span>
+          </div>
+        </div>
+        {passport.stamps.filter(s => s.startsWith('Event')).length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {passport.stamps.filter(s => s.startsWith('Event')).map(s => (
+              <span key={s} className="text-xs px-2 py-0.5 rounded-full font-medium text-zinc-400 bg-zinc-700">
+                ✓ {s.replace(/^Event\??:\s*/, '')}
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={eventInput}
+            onChange={e => setEventInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleEventSubmit()}
+            placeholder="lu.ma/event-name ili atestacija JSON"
+            className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+          />
+          <button
+            onClick={handleEventSubmit}
+            disabled={!eventInput.trim() || eventStatus === 'verifying'}
+            className="text-xs px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors font-medium"
+            style={{ background: '#3f3f46', color: '#fff' }}
+          >
+            {eventStatus === 'verifying' ? '...' : 'Dodaj'}
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-zinc-600">ili uploaduj:</span>
+          <label className="cursor-pointer text-xs px-2.5 py-1 rounded-lg font-medium transition-colors"
+            style={{ background: '#3f3f46', color: '#a1a1aa' }}>
+            .ics / .pkpass
+            <input
+              type="file"
+              accept=".ics,.pkpass"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+          </label>
+        </div>
+        {eventError && <p className="text-xs text-red-400">{eventError}</p>}
+        <p className="text-xs text-zinc-600">
+          Luma link ili fajl → self-reported (+3). Atestacija od organizatora → verifikovano (+8).
+        </p>
+      </div>
 
       {/* GitHub */}
       <div className="bg-zinc-800 rounded-lg px-4 py-2.5 space-y-2">

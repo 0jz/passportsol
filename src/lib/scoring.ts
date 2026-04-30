@@ -7,6 +7,8 @@ const STAMP_POINTS: Array<[RegExp, number]> = [
   [/100\+ txs/,        12],
   [/50\+ txs/,          8],
   [/10\+ txs/,          3],
+  [/^Event: /,          8],  // verified by trusted issuer
+  [/^Event\?: /,        3],  // self-reported
 ]
 
 export function calculatePassportScore(gitcoinScore: number, stamps: string[]): number {
