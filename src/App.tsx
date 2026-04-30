@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import { type PassportData } from './lib/gitcoin'
 import { mintPassportMemo } from './lib/solana'
+import { handleTwitterCallback } from './lib/twitterOAuth'
 import EthStep from './components/EthStep'
 import StampsStep from './components/StampsStep'
 import SuccessCard from './components/SuccessCard'
@@ -21,6 +22,25 @@ export default function App() {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [addingStamps, setAddingStamps] = useState(false)
+  const [twitterHandle, setTwitterHandle] = useState<string | undefined>(undefined)
+
+  // Handle Twitter OAuth callback on page load
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('code')
+    const state = params.get('state')
+    if (!code || !state || !sessionStorage.getItem('tw_state')) return
+
+    handleTwitterCallback(code, state)
+      .then(username => {
+        setTwitterHandle(username)
+        if (sessionStorage.getItem('tw_return_adding_stamps')) {
+          sessionStorage.removeItem('tw_return_adding_stamps')
+          setAddingStamps(true)
+        }
+      })
+      .catch(console.error)
+  }, [])
 
   const step: Step =
     txHash ? 4 :
@@ -157,7 +177,7 @@ export default function App() {
               {addingStamps && (
                 <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-5">
                   <p className="text-sm font-medium mb-3">Add Stamps</p>
-                  <StampsStep passport={passport} onDone={handleReclaimDone} />
+                  <StampsStep passport={passport} onDone={handleReclaimDone} preVerifiedTwitter={twitterHandle} />
                 </div>
               )}
             </div>
