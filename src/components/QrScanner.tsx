@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import jsQR from 'jsqr'
 
 interface Props {
@@ -56,34 +57,61 @@ export default function QrScanner({ onResult, onClose }: Props) {
     }
   }, [onResult])
 
-  return (
-    <div className="space-y-2">
-      <div className="relative rounded-lg overflow-hidden bg-zinc-950" style={{ aspectRatio: '1', width: '100%' }}>
-        {!error && (
-          <>
-            <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
-            <canvas ref={canvasRef} className="hidden" />
-            {/* Viewfinder overlay */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-64 h-64 border-2 border-white/40 rounded-lg" style={{
-                boxShadow: '0 0 0 9999px rgba(0,0,0,0.45)'
-              }} />
-            </div>
-          </>
-        )}
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      {/* Camera feed — full screen */}
+      {!error && (
+        <>
+          <video
+            ref={videoRef}
+            className="absolute inset-0 w-full h-full object-cover"
+            playsInline
+            muted
+          />
+          <canvas ref={canvasRef} className="hidden" />
+        </>
+      )}
+
+      {/* Dimmed overlay with cutout */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'rgba(0,0,0,0.55)'
+      }} />
+
+      {/* Viewfinder */}
+      <div className="relative z-10 flex flex-col items-center gap-6">
+        <div
+          className="rounded-2xl"
+          style={{
+            width: 'min(80vw, 80vh)',
+            height: 'min(80vw, 80vh)',
+            border: '3px solid rgba(255,255,255,0.7)',
+            boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)',
+          }}
+        />
         {error && (
-          <div className="flex items-center justify-center h-full p-4">
-            <p className="text-xs text-red-400 text-center">{error}</p>
-          </div>
+          <p className="text-sm text-red-400 text-center px-6">{error}</p>
         )}
+        <p className="text-sm text-white/60">Usmeri kameru prema QR kodu</p>
       </div>
-      <p className="text-xs text-zinc-500 text-center">Usmeri kameru prema QR kodu na tiketu</p>
+
+      {/* Close button */}
       <button
         onClick={onClose}
-        className="w-full text-zinc-500 hover:text-zinc-300 text-xs py-1 transition-colors"
+        className="absolute top-5 right-5 z-20 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
       >
-        Otkaži
+        ✕
       </button>
-    </div>
+    </div>,
+    document.body
   )
 }
