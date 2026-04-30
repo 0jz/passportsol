@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useConnection } from '@solana/wallet-adapter-react'
 import { getPassportFromChain } from '../lib/solana'
-import { calculatePassportScore } from '../lib/scoring'
 import PassportView from './PassportView'
 
 function isEthAddress(addr: string) {
@@ -46,7 +45,6 @@ export default function VerifyPage() {
   }, [address, connection])
 
   const threshold = (result && result !== 'not_found' ? result.threshold : undefined) ?? 20
-  const isVerified = result && result !== 'not_found' && calculatePassportScore(result.score, result.stamps) >= threshold
 
   return (
     <div className="max-w-lg mx-auto px-4 py-16">
