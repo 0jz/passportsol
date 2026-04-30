@@ -144,6 +144,17 @@ export default function App() {
     }
   }, [wallet, connection, passport])
 
+  const handleBackToEth = useCallback(() => {
+    setPassport(null)
+    setStampsReady(false)
+    setCustomStamps([])
+  }, [])
+
+  const handleBackToStamps = useCallback(() => {
+    setStampsReady(false)
+    setCustomStamps([])
+  }, [])
+
   const handleDelete = useCallback(async () => {
     if (!pubkeyStr) return
     if (!window.confirm(
@@ -242,7 +253,12 @@ export default function App() {
             {/* Step 3 — stamps */}
             <StepCard number={3} title="Add Stamps" badge="optional" done={step >= 3} active={step === 2} locked={step < 2}>
               {step === 2 && passport && (
-                <StampsStep passport={passport} onDone={handleStampsDone} />
+                <>
+                  <StampsStep passport={passport} onDone={handleStampsDone} />
+                  <button onClick={handleBackToEth} className="text-zinc-600 hover:text-zinc-400 text-xs py-1 transition-colors">
+                    ← Back
+                  </button>
+                </>
               )}
               {step > 2 && customStamps.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
@@ -262,14 +278,19 @@ export default function App() {
             {/* Step 4 — mint */}
             <StepCard number={4} title="Mint Passport On-Chain" done={step >= 4} active={step === 3} locked={step < 3}>
               {step === 3 && !txHash && (
-                <button
-                  onClick={mintPassport}
-                  disabled={!!loading}
-                  className="disabled:opacity-50 text-black text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
-                  style={{ background: '#14F195' }}
-                >
-                  {loading ?? 'Mint Passport →'}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={mintPassport}
+                    disabled={!!loading}
+                    className="disabled:opacity-50 text-black text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+                    style={{ background: '#14F195' }}
+                  >
+                    {loading ?? 'Mint Passport →'}
+                  </button>
+                  <button onClick={handleBackToStamps} className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors">
+                    ← Back
+                  </button>
+                </div>
               )}
             </StepCard>
           </div>
