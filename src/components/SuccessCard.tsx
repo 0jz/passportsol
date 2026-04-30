@@ -1,4 +1,5 @@
 import type { PassportData } from '../lib/gitcoin'
+import { calculatePassportScore, bonusFromStamps } from '../lib/scoring'
 
 interface Props {
   passport: PassportData
@@ -6,8 +7,10 @@ interface Props {
 }
 
 export default function SuccessCard({ passport, txHash }: Props) {
+  const passportScore = calculatePassportScore(passport.score, passport.stamps)
+  const bonus = bonusFromStamps(passport.stamps)
   const threshold = passport.threshold
-  const isVerified = passport.score >= threshold
+  const isVerified = passportScore >= threshold
   const short = (s: string) => `${s.slice(0, 6)}...${s.slice(-4)}`
 
   return (
@@ -22,9 +25,12 @@ export default function SuccessCard({ passport, txHash }: Props) {
 
         <div className="flex justify-between items-start">
           <div>
-            <p className="text-xs text-zinc-500 uppercase tracking-widest mb-1">Gitcoin Score</p>
+            <p className="text-xs text-zinc-500 uppercase tracking-widest mb-1">Passport Score</p>
             <p className="text-6xl font-bold" style={{ color: '#14F195' }}>
-              {passport.score.toFixed(1)}
+              {passportScore.toFixed(1)}
+            </p>
+            <p className="text-xs text-zinc-600 mt-1">
+              Gitcoin {passport.score.toFixed(1)}{bonus > 0 ? ` + ${bonus} bonus` : ''}
             </p>
           </div>
           <div className="text-right space-y-2">

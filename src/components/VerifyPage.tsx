@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useConnection } from '@solana/wallet-adapter-react'
 import { getPassportFromChain } from '../lib/solana'
+import { calculatePassportScore, bonusFromStamps } from '../lib/scoring'
 
 function isEthAddress(addr: string) {
   return /^0x[0-9a-fA-F]{40}$/.test(addr)
@@ -44,7 +45,7 @@ export default function VerifyPage() {
   }, [address, connection])
 
   const threshold = (result && result !== 'not_found' ? result.threshold : undefined) ?? 20
-  const isVerified = result && result !== 'not_found' && result.score >= threshold
+  const isVerified = result && result !== 'not_found' && calculatePassportScore(result.score, result.stamps) >= threshold
 
   return (
     <div className="max-w-lg mx-auto px-4 py-16">
@@ -97,10 +98,15 @@ export default function VerifyPage() {
         <div className="rounded-xl border bg-zinc-900 overflow-hidden" style={{ borderColor: isVerified ? 'rgba(20,241,149,0.3)' : '#3f3f46' }}>
           <div className="px-5 py-4 border-b border-zinc-800 flex justify-between items-start">
             <div>
-              <p className="text-xs text-zinc-500 uppercase tracking-widest mb-1">Gitcoin Score</p>
+              <p className="text-xs text-zinc-500 uppercase tracking-widest mb-1">Passport Score</p>
               <p className="text-5xl font-bold" style={{ color: '#14F195' }}>
-                {result.score.toFixed(1)}
+                {calculatePassportScore(result.score, result.stamps).toFixed(1)}
               </p>
+              {bonusFromStamps(result.stamps) > 0 && (
+                <p className="text-xs text-zinc-600 mt-1">
+                  Gitcoin {result.score.toFixed(1)} + {bonusFromStamps(result.stamps)} bonus
+                </p>
+              )}
             </div>
             <div className="text-right">
               <p className="text-xs text-zinc-500 mb-2">Status</p>
