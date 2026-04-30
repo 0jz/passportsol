@@ -5,28 +5,30 @@ import { createVerificationMessage, signWithMetaMask } from '../lib/siwe'
 
 interface EthProvider {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
-  isMetaMask?: boolean
-  isPhantom?: boolean
 }
 
-function detectProviders(): { metamask: EthProvider | null; phantom: EthProvider | null } {
-  const eth = window.ethereum as (EthProvider & { providers?: EthProvider[] }) | undefined
-  if (!eth) return { metamask: null, phantom: null }
+interface EIP6963Detail {
+  info: { uuid: string; name: string; icon: string; rdns: string }
+  provider: EthProvider
+}
 
-  // EIP-5749: multiple injected providers
-  const list = eth.providers
-  if (list?.length) {
-    return {
-      metamask: list.find(p => p.isMetaMask && !p.isPhantom) ?? null,
-      phantom:  list.find(p => p.isPhantom) ?? null,
+function useEip6963Providers() {
+  const [providers, setProviders] = useState<EIP6963Detail[]>([])
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<EIP6963Detail>).detail
+      if (!detail?.info?.uuid) return
+      setProviders(prev =>
+        prev.some(p => p.info.uuid === detail.info.uuid) ? prev : [...prev, detail]
+      )
     }
-  }
+    window.addEventListener('eip6963:announceProvider', handler)
+    window.dispatchEvent(new Event('eip6963:requestProvider'))
+    return () => window.removeEventListener('eip6963:announceProvider', handler)
+  }, [])
 
-  // Single provider
-  return {
-    metamask: eth.isMetaMask && !eth.isPhantom ? eth : null,
-    phantom:  eth.isPhantom ? eth : null,
-  }
+  return providers
 }
 
 interface Props {
@@ -39,18 +41,25 @@ export default function EthStep({ solanaAddress, onDone }: Props) {
   const [manualAddress, setManualAddress] = useState('')
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [providers, setProviders] = useState<ReturnType<typeof detectProviders>>({ metamask: null, phantom: null })
+  const eip6963 = useEip6963Providers()
+  const [legacyProvider, setLegacyProvider] = useState<EthProvider | null>(null)
 
   useEffect(() => {
-    setProviders(detectProviders())
-  }, [])
+    // Give EIP-6963 wallets a tick to announce, then check legacy window.ethereum
+    const t = setTimeout(() => {
+      if (eip6963.length === 0) {
+        const eth = (window as { ethereum?: EthProvider }).ethereum
+        setLegacyProvider(eth ?? null)
+      }
+    }, 150)
+    return () => clearTimeout(t)
+  }, [eip6963.length])
 
   const connectWith = useCallback(async (provider: EthProvider, label: string) => {
     setError(null)
     try {
       setLoading(`Connecting ${label}...`)
       const accounts = await provider.request({ method: 'eth_requestAccounts' }) as string[]
-      // getAddress() converts to EIP-55 checksummed format, fixes lowercase issue
       const address = getAddress(accounts[0])
 
       setLoading('Waiting for signature...')
@@ -61,10 +70,9 @@ export default function EthStep({ solanaAddress, onDone }: Props) {
       const data = await fetchPassport(address)
       onDone(data)
     } catch (e) {
-      console.error(e)
       const code = (e as { code?: number })?.code
       if (code === -32002) {
-        setError('MetaMask ima pending zahtjev — otvori MetaMask i prihvati ili odbij ga, pa proba ponovo.')
+        setError('Wallet ima pending zahtjev — otvori ga i prihvati ili odbij, pa proba ponovo.')
       } else {
         setError((e as { message?: string })?.message ?? String(e))
       }
@@ -97,33 +105,33 @@ export default function EthStep({ solanaAddress, onDone }: Props) {
     onDone({ ethAddress: null!, score: 0, threshold, stamps: [], lastUpdated: new Date().toISOString() })
   }, [onDone])
 
-  if (loading) {
-    return <p className="text-sm text-zinc-400">{loading}</p>
-  }
+  if (loading) return <p className="text-sm text-zinc-400">{loading}</p>
 
   return (
     <div className="space-y-2">
       {mode === 'choose' && (
         <>
-          {providers.metamask && (
+          {eip6963.map(({ info, provider }) => (
             <button
-              onClick={() => connectWith(providers.metamask!, 'MetaMask')}
-              className="w-full flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              key={info.uuid}
+              onClick={() => connectWith(provider, info.name)}
+              className="w-full flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
-              <span>🦊</span> Connect MetaMask
+              <img src={info.icon} alt={info.name} className="w-5 h-5 rounded-sm shrink-0" />
+              Connect {info.name}
+            </button>
+          ))}
+
+          {eip6963.length === 0 && legacyProvider && (
+            <button
+              onClick={() => connectWith(legacyProvider, 'Ethereum Wallet')}
+              className="w-full flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              <span className="text-lg leading-none">🔗</span> Connect Ethereum Wallet
             </button>
           )}
 
-          {providers.phantom && (
-            <button
-              onClick={() => connectWith(providers.phantom!, 'Phantom')}
-              className="w-full flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-            >
-              <span>👻</span> Connect Phantom (Ethereum)
-            </button>
-          )}
-
-          {!providers.metamask && !providers.phantom && (
+          {eip6963.length === 0 && !legacyProvider && (
             <p className="text-xs text-zinc-500">No Ethereum wallet detected</p>
           )}
 
@@ -152,7 +160,7 @@ export default function EthStep({ solanaAddress, onDone }: Props) {
           <div className="flex gap-2">
             <button
               onClick={handleManual}
-              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
               Fetch Passport
             </button>
