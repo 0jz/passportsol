@@ -6,7 +6,6 @@ import { createRoot } from 'react-dom/client'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base'
 import {
-  PhantomWalletAdapter,
   SolflareWalletAdapter,
   CoinbaseWalletAdapter,
   TrustWalletAdapter,
@@ -20,7 +19,6 @@ import App from './App.tsx'
 function Providers({ children }: { children: React.ReactNode }) {
   const endpoint = useMemo(() => clusterApiUrl(WalletAdapterNetwork.Devnet), [])
   const wallets = useMemo(() => [
-    new PhantomWalletAdapter(),
     new SolflareWalletAdapter(),
     new CoinbaseWalletAdapter(),
     new TrustWalletAdapter(),
