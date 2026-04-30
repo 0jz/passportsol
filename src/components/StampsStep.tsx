@@ -28,13 +28,6 @@ export default function StampsStep({ passport, onDone }: Props) {
   const [error, setError] = useState<string | null>(null)
   const autoProceedFired = useRef(false)
 
-  // Auto-proceed after GitHub verification without requiring button click
-  useEffect(() => {
-    if (githubStep !== 'done' || autoProceedFired.current) return
-    autoProceedFired.current = true
-    onDone(verified)
-  }, [githubStep, verified, onDone])
-
   // Only add if not already in passport
   const addStamp = useCallback((stamp: string) => {
     if (passport.stamps.includes(stamp)) return
@@ -76,6 +69,18 @@ export default function StampsStep({ passport, onDone }: Props) {
   }, [wallet.publicKey, connection, passport.stamps, addStamp])
 
   const hasGithubStamp = passport.stamps.some(s => /^GitHub:/.test(s))
+
+  // True when every manual stamp option is verified or already in passport.
+  // Add more conditions here as new stamps are introduced (e.g. Twitter):
+  // && (hasTwitterStamp || twitterStep === 'done')
+  const allManualHandled = hasGithubStamp || githubStep === 'done'
+
+  useEffect(() => {
+    if (!allManualHandled || autoProceedFired.current) return
+    if (verified.length === 0) return  // nothing new — let user click Skip
+    autoProceedFired.current = true
+    onDone(verified)
+  }, [allManualHandled, verified, onDone])
 
   const startGithub = useCallback(async () => {
     setError(null)

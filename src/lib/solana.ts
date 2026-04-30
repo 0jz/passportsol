@@ -82,7 +82,7 @@ export async function mintPassportMemo(
 export async function getPassportFromChain(
   address: string,
   connection: Connection,
-): Promise<{ score: number; stamps: string[]; ts: number } | null> {
+): Promise<{ score: number; threshold?: number; stamps: string[]; ts: number; eth?: string } | null> {
   try {
     const pubkey = new PublicKey(address)
     const signatures = await connection.getSignaturesForAddress(pubkey, { limit: 30 })
