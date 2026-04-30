@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import { type PassportData } from './lib/gitcoin'
@@ -8,12 +8,38 @@ import StampsStep from './components/StampsStep'
 import SuccessCard from './components/SuccessCard'
 import VerifyPage from './components/VerifyPage'
 
+// ─── localStorage helpers ────────────────────────────────────────────────────
+
+interface StoredData {
+  passport: PassportData
+  txHash: string
+}
+
+function storageKey(addr: string) { return `solpassport_v1_${addr}` }
+
+function loadStored(addr: string): StoredData | null {
+  try { return JSON.parse(localStorage.getItem(storageKey(addr)) ?? 'null') }
+  catch { return null }
+}
+
+function saveStored(addr: string, data: StoredData) {
+  try { localStorage.setItem(storageKey(addr), JSON.stringify(data)) }
+  catch {}
+}
+
+function clearStored(addr: string) {
+  localStorage.removeItem(storageKey(addr))
+}
+
+// ─── App ─────────────────────────────────────────────────────────────────────
+
 type Page = 'mint' | 'verify'
 type Step = 0 | 1 | 2 | 3 | 4
 
 export default function App() {
   const { connection } = useConnection()
   const wallet = useWallet()
+  const pubkeyStr = useMemo(() => wallet.publicKey?.toBase58() ?? null, [wallet.publicKey])
 
   const [page, setPage] = useState<Page>('mint')
   const [passport, setPassport] = useState<PassportData | null>(null)
@@ -23,6 +49,25 @@ export default function App() {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [addingStamps, setAddingStamps] = useState(false)
+
+  // Restore from localStorage when wallet connects; clear state when it disconnects
+  useEffect(() => {
+    if (!pubkeyStr) {
+      setPassport(null)
+      setTxHash(null)
+      setStampsReady(false)
+      setCustomStamps([])
+      setAddingStamps(false)
+      setError(null)
+      return
+    }
+    const stored = loadStored(pubkeyStr)
+    if (stored) {
+      setPassport(stored.passport)
+      setTxHash(stored.txHash)
+      setStampsReady(true)
+    }
+  }, [pubkeyStr])
 
   const step: Step =
     txHash ? 4 :
@@ -47,9 +92,11 @@ export default function App() {
     try {
       setLoading('Re-minting passport with new stamps...')
       const txid = await mintPassportMemo(wallet, connection, updated)
-      // Update passport and score only after transaction confirms
       setPassport(updated)
       setTxHash(txid)
+      if (wallet.publicKey) {
+        saveStored(wallet.publicKey.toBase58(), { passport: updated, txHash: txid })
+      }
     } catch (e) {
       setError((e as { message?: string })?.message ?? String(e))
     } finally {
@@ -64,6 +111,9 @@ export default function App() {
       setLoading('Requesting devnet SOL if needed...')
       const txid = await mintPassportMemo(wallet, connection, passport)
       setTxHash(txid)
+      if (wallet.publicKey) {
+        saveStored(wallet.publicKey.toBase58(), { passport, txHash: txid })
+      }
     } catch (e) {
       console.error(e)
       setError((e as { message?: string })?.message ?? String(e))
@@ -71,6 +121,20 @@ export default function App() {
       setLoading(null)
     }
   }, [wallet, connection, passport])
+
+  const handleDelete = useCallback(() => {
+    if (!pubkeyStr) return
+    if (!window.confirm(
+      'Ovo će ukloniti pasoš iz ovog browsera.\nTransakcija ostaje na Solana lancu i ne može se obrisati.'
+    )) return
+    clearStored(pubkeyStr)
+    setPassport(null)
+    setTxHash(null)
+    setStampsReady(false)
+    setCustomStamps([])
+    setAddingStamps(false)
+    setError(null)
+  }, [pubkeyStr])
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
@@ -200,6 +264,13 @@ export default function App() {
                   <StampsStep passport={passport} onDone={handleMoreStampsDone} />
                 </div>
               )}
+
+              <button
+                onClick={handleDelete}
+                className="w-full text-zinc-600 hover:text-red-400 text-xs py-1 transition-colors"
+              >
+                Reset passport data from this browser
+              </button>
             </div>
           )}
 

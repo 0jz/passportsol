@@ -40,7 +40,7 @@ export async function mintPassportMemo(
     eth: passport.ethAddress ?? null,
     score: passport.score,
     threshold: passport.threshold,
-    stamps: passport.stamps.slice(0, 8),
+    stamps: passport.stamps.slice(0, 20),
     ts: Math.floor(Date.now() / 1000),
   })
 
