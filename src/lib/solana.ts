@@ -82,7 +82,7 @@ export async function mintPassportMemo(
 export async function getPassportFromChain(
   address: string,
   connection: Connection,
-): Promise<{ score: number; threshold?: number; stamps: string[]; ts: number; eth?: string } | null> {
+): Promise<{ score: number; threshold?: number; stamps: string[]; ts: number; eth?: string; txSig: string } | null> {
   try {
     const pubkey = new PublicKey(address)
     const signatures = await connection.getSignaturesForAddress(pubkey, { limit: 30 })
@@ -99,7 +99,7 @@ export async function getPassportFromChain(
           try {
             const content = memoMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\')
             const data = JSON.parse(content)
-            if (data.v === 1) return data
+            if (data.v === 1) return { ...data, txSig: sig.signature }
           } catch {
             // not our memo, skip
           }

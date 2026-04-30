@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import { type PassportData } from './lib/gitcoin'
-import { mintPassportMemo } from './lib/solana'
+import { mintPassportMemo, getPassportFromChain } from './lib/solana'
 import EthStep from './components/EthStep'
 import StampsStep from './components/StampsStep'
 import SuccessCard from './components/SuccessCard'
@@ -49,8 +49,9 @@ export default function App() {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [addingStamps, setAddingStamps] = useState(false)
+  const [syncing, setSyncing] = useState(false)
 
-  // Restore from localStorage when wallet connects; clear state when it disconnects
+  // Restore from localStorage or chain when wallet connects; clear on disconnect
   useEffect(() => {
     if (!pubkeyStr) {
       setPassport(null)
@@ -61,13 +62,34 @@ export default function App() {
       setError(null)
       return
     }
+
+    // Fast path: localStorage hit
     const stored = loadStored(pubkeyStr)
     if (stored) {
       setPassport(stored.passport)
       setTxHash(stored.txHash)
       setStampsReady(true)
+      return
     }
-  }, [pubkeyStr])
+
+    // Slow path: check the chain (works on any device, any browser)
+    setSyncing(true)
+    getPassportFromChain(pubkeyStr, connection).then(data => {
+      if (!data) return
+      const passport: PassportData = {
+        ethAddress: data.eth ?? '',
+        score: data.score,
+        threshold: data.threshold ?? 20,
+        stamps: data.stamps,
+        lastUpdated: new Date(data.ts * 1000).toISOString(),
+      }
+      setPassport(passport)
+      setTxHash(data.txSig)
+      setStampsReady(true)
+      // Populate localStorage so next load is instant
+      saveStored(pubkeyStr, { passport, txHash: data.txSig })
+    }).finally(() => setSyncing(false))
+  }, [pubkeyStr, connection])
 
   const step: Step =
     txHash ? 4 :
@@ -185,11 +207,14 @@ export default function App() {
                     {wallet.publicKey.toBase58()}
                   </p>
                 )}
+                {syncing && (
+                  <p className="text-xs text-zinc-500 animate-pulse">Checking for existing passport...</p>
+                )}
               </div>
             </StepCard>
 
             {/* Step 2 — optional ETH */}
-            <StepCard number={2} title="Link Ethereum Identity" badge="optional" done={step >= 2} active={step === 1} locked={step < 1}>
+            <StepCard number={2} title="Link Ethereum Identity" badge="optional" done={step >= 2} active={step === 1 && !syncing} locked={step < 1 || syncing}>
               {step === 1 && (
                 <EthStep
                   solanaAddress={wallet.publicKey?.toBase58() ?? ''}
