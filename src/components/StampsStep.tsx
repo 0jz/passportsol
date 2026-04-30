@@ -66,14 +66,19 @@ export default function StampsStep({ passport, onDone }: Props) {
       const token = await pollForToken(device_code, interval)
       const user = await fetchGithubUser(token)
       const stamp = `GitHub: ${user.login}`
-      addStamp(stamp)
       setGithubStep('done')
+      // Auto-trigger re-mint with all current stamps + new GitHub stamp
+      setVerified(prev => {
+        const updated = prev.includes(stamp) ? prev : [...prev, stamp]
+        onDone(updated)
+        return updated
+      })
     } catch (e) {
       setError((e as Error).message)
       setGithubStep('idle')
       setLoading(false)
     }
-  }, [addStamp])
+  }, [onDone])
 
   return (
     <div className="space-y-2">
