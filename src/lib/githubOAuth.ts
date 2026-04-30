@@ -17,9 +17,9 @@ export interface GithubUser {
 export async function requestDeviceCode(): Promise<DeviceCodeResponse> {
   if (!CLIENT_ID) throw new Error('VITE_GITHUB_CLIENT_ID not set')
 
-  const res = await fetch('https://github.com/login/device/code', {
+  const res = await fetch('/api/github-device-code', {
     method: 'POST',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ client_id: CLIENT_ID, scope: 'read:user' }),
   })
 
@@ -37,9 +37,9 @@ export async function pollForToken(deviceCode: string, intervalSecs: number): Pr
   while (Date.now() < deadline) {
     await delay(interval * 1000)
 
-    const res = await fetch('https://github.com/login/oauth/access_token', {
+    const res = await fetch('/api/github-token', {
       method: 'POST',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         client_id: CLIENT_ID,
         device_code: deviceCode,

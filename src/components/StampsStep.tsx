@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect } from 'react'
 import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { requestDeviceCode, pollForToken, fetchGithubUser } from '../lib/githubOAuth'
 import { lookupEns } from '../lib/ens'
-import { lookupFarcasterByEth } from '../lib/farcaster'
 import { analyzeSolanaWallet } from '../lib/solanaStats'
 import type { PassportData } from '../lib/gitcoin'
 
@@ -22,7 +21,6 @@ export default function StampsStep({ passport, onDone }: Props) {
 
   const [verified, setVerified] = useState<string[]>([])
   const [ens, setEns] = useState<StampState>({ status: passport.ethAddress ? 'checking' : 'idle' })
-  const [farcaster, setFarcaster] = useState<StampState>({ status: passport.ethAddress ? 'checking' : 'idle' })
   const [solana, setSolana] = useState<StampState>({ status: wallet.publicKey ? 'checking' : 'idle' })
   const [githubStep, setGithubStep] = useState<'idle' | 'code' | 'polling' | 'done'>('idle')
   const [userCode, setUserCode] = useState<string | null>(null)
@@ -39,15 +37,6 @@ export default function StampsStep({ passport, onDone }: Props) {
     lookupEns(passport.ethAddress).then(name => {
       if (name) { setEns({ status: 'found', value: name }); addStamp(`ENS: ${name}`) }
       else setEns({ status: 'not_found' })
-    })
-  }, [passport.ethAddress, addStamp])
-
-  // Auto-detect Farcaster
-  useEffect(() => {
-    if (!passport.ethAddress) return
-    lookupFarcasterByEth(passport.ethAddress).then(username => {
-      if (username) { setFarcaster({ status: 'found', value: username }); addStamp(`Farcaster: ${username}`) }
-      else setFarcaster({ status: 'not_found' })
     })
   }, [passport.ethAddress, addStamp])
 

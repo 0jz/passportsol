@@ -1,6 +1,6 @@
 import { JsonRpcProvider } from 'ethers'
 
-const provider = new JsonRpcProvider('https://cloudflare-eth.com')
+const provider = new JsonRpcProvider('https://eth.llamarpc.com')
 
 export async function lookupEns(ethAddress: string): Promise<string | null> {
   try {
