@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { requestDeviceCode, pollForToken, fetchGithubUser } from '../lib/githubOAuth'
 import { lookupEns } from '../lib/ens'
@@ -30,7 +30,6 @@ export default function StampsStep({ passport, onDone }: Props) {
   const [eventInput, setEventInput] = useState('')
   const [eventStatus, setEventStatus] = useState<'idle' | 'verifying' | 'error'>('idle')
   const [eventError, setEventError] = useState<string | null>(null)
-  const autoProceedFired = useRef(false)
 
   // Only add if not already in passport
   const addStamp = useCallback((stamp: string) => {
@@ -73,18 +72,6 @@ export default function StampsStep({ passport, onDone }: Props) {
   }, [wallet.publicKey, connection, passport.stamps, addStamp])
 
   const hasGithubStamp = passport.stamps.some(s => /^GitHub:/.test(s))
-
-  // True when every manual stamp option is verified or already in passport.
-  // Add more conditions here as new stamps are introduced (e.g. Twitter):
-  // && (hasTwitterStamp || twitterStep === 'done')
-  const allManualHandled = hasGithubStamp || githubStep === 'done'
-
-  useEffect(() => {
-    if (!allManualHandled || autoProceedFired.current) return
-    if (verified.length === 0) return  // nothing new — let user click Skip
-    autoProceedFired.current = true
-    onDone(verified)
-  }, [allManualHandled, verified, onDone])
 
   const addEventStamp = useCallback((name: string) => {
     const stamp = `Event?: ${name}`
@@ -292,17 +279,11 @@ export default function StampsStep({ passport, onDone }: Props) {
         </div>
       )}
 
-      <div className="flex gap-2 pt-1">
-        {verified.length > 0 && (
-          <button onClick={() => onDone(verified)}
-            className="flex-1 text-black text-sm font-semibold px-4 py-2 rounded-lg"
-            style={{ background: '#14F195' }}>
-            Add {verified.length} stamp{verified.length > 1 ? 's' : ''} →
-          </button>
-        )}
+      <div className="pt-1">
         <button onClick={() => onDone(verified)}
-          className={`text-zinc-500 hover:text-zinc-300 text-xs py-1 transition-colors ${verified.length === 0 ? 'w-full' : ''}`}>
-          {verified.length > 0 ? 'Skip remaining →' : 'Skip →'}
+          className="w-full text-black text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+          style={{ background: '#14F195' }}>
+          {verified.length > 0 ? `Continue with ${verified.length} stamp${verified.length > 1 ? 's' : ''} →` : 'Continue →'}
         </button>
       </div>
     </div>
