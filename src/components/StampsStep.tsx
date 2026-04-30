@@ -85,10 +85,6 @@ export default function StampsStep({ passport, onDone }: Props) {
         <StampRow label="ENS" description="Ethereum Name Service" state={ens} />
       )}
 
-      {/* Farcaster */}
-      {passport.ethAddress && (
-      )}
-
       {/* GitHub */}
       <div className="bg-zinc-800 rounded-lg px-4 py-2.5 space-y-2">
         <div className="flex items-center justify-between">
