@@ -17,6 +17,8 @@ export default function App() {
 
   const [page, setPage] = useState<Page>('mint')
   const [passport, setPassport] = useState<PassportData | null>(null)
+  const [stampsReady, setStampsReady] = useState(false)
+  const [customStamps, setCustomStamps] = useState<string[]>([])
   const [txHash, setTxHash] = useState<string | null>(null)
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -24,10 +26,20 @@ export default function App() {
 
   const step: Step =
     txHash ? 4 :
-    passport ? 3 :
+    passport && stampsReady ? 3 :
+    passport ? 2 :
     wallet.connected ? 1 : 0
 
-  const handleReclaimDone = useCallback(async (newStamps: string[]) => {
+  const handleStampsDone = useCallback((newStamps: string[]) => {
+    setCustomStamps(newStamps)
+    setPassport(prev => {
+      if (!prev || newStamps.length === 0) return prev
+      return { ...prev, stamps: [...prev.stamps, ...newStamps] }
+    })
+    setStampsReady(true)
+  }, [])
+
+  const handleMoreStampsDone = useCallback(async (newStamps: string[]) => {
     setAddingStamps(false)
     if (!passport || newStamps.length === 0) return
     const updated = { ...passport, stamps: [...passport.stamps, ...newStamps] }
@@ -119,16 +131,36 @@ export default function App() {
                   onDone={setPassport}
                 />
               )}
-              {passport?.ethAddress && (
+              {step > 1 && passport?.ethAddress && (
                 <p className="text-xs text-zinc-500 font-mono truncate">{passport.ethAddress}</p>
               )}
-              {passport && !passport.ethAddress && (
+              {step > 1 && passport && !passport.ethAddress && (
                 <p className="text-xs text-zinc-500">Skipped — no ETH data</p>
               )}
             </StepCard>
 
-            {/* Step 3 — mint */}
-            <StepCard number={3} title="Mint Passport On-Chain" done={step >= 4} active={step === 3} locked={step < 3}>
+            {/* Step 3 — stamps */}
+            <StepCard number={3} title="Add Stamps" badge="optional" done={step >= 3} active={step === 2} locked={step < 2}>
+              {step === 2 && passport && (
+                <StampsStep passport={passport} onDone={handleStampsDone} />
+              )}
+              {step > 2 && customStamps.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {customStamps.map(s => (
+                    <span key={s} className="text-xs px-2 py-0.5 rounded-full font-medium"
+                      style={{ background: 'rgba(20,241,149,0.1)', color: '#14F195', border: '1px solid rgba(20,241,149,0.2)' }}>
+                      ✓ {s}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {step > 2 && customStamps.length === 0 && (
+                <p className="text-xs text-zinc-500">Skipped</p>
+              )}
+            </StepCard>
+
+            {/* Step 4 — mint */}
+            <StepCard number={4} title="Mint Passport On-Chain" done={step >= 4} active={step === 3} locked={step < 3}>
               {step === 3 && !txHash && (
                 <button
                   onClick={mintPassport}
@@ -142,22 +174,29 @@ export default function App() {
             </StepCard>
           </div>
 
-          {/* Success */}
           {txHash && passport && (
             <div className="mt-4 space-y-3">
               <SuccessCard passport={passport} txHash={txHash} />
+
               {!addingStamps && (
                 <button
                   onClick={() => setAddingStamps(true)}
                   className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm px-4 py-2.5 rounded-lg transition-colors"
                 >
-                  + Add Web2 Stamps via Reclaim
+                  + Add more stamps
                 </button>
               )}
+
               {addingStamps && (
-                <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-5">
-                  <p className="text-sm font-medium mb-3">Add Stamps</p>
-                  <StampsStep passport={passport} onDone={handleReclaimDone} />
+                <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-5 space-y-3">
+                  <div className="flex items-start gap-2 bg-amber-950/40 border border-amber-800/50 rounded-lg px-3 py-2">
+                    <span className="text-amber-400 text-sm mt-0.5">⚠</span>
+                    <p className="text-xs text-amber-300/90">
+                      Adding stamps requires a new on-chain transaction. A small network fee (~0.000005 SOL) will be charged for each update.
+                    </p>
+                  </div>
+                  <p className="text-sm font-medium text-white">Add Stamps</p>
+                  <StampsStep passport={passport} onDone={handleMoreStampsDone} />
                 </div>
               )}
             </div>
