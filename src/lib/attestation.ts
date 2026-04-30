@@ -69,8 +69,21 @@ export function parseAttestation(input: string): EventAttestation | null {
 }
 
 export function parseIcs(text: string): string | null {
-  const summary = text.match(/^SUMMARY:(.+)$/m)?.[1]?.trim()
+  const summary = text.match(/^SUMMARY[^:]*:(.+)$/m)?.[1]?.trim()
   return summary ?? null
+}
+
+// Parses a full iCal calendar feed and returns all event names
+export function parseIcsFeed(text: string): string[] {
+  const blocks = text.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) ?? []
+  const names: string[] = []
+  for (const block of blocks) {
+    // Unfold line continuations (RFC 5545: lines starting with space/tab continue previous)
+    const unfolded = block.replace(/\r?\n[ \t]/g, '')
+    const summary = unfolded.match(/^SUMMARY[^:]*:(.+)$/m)?.[1]?.trim()
+    if (summary) names.push(summary)
+  }
+  return [...new Set(names)]
 }
 
 export async function parsePkpass(file: File): Promise<string | null> {

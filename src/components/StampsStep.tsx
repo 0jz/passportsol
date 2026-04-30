@@ -3,7 +3,7 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { requestDeviceCode, pollForToken, fetchGithubUser } from '../lib/githubOAuth'
 import { lookupEns } from '../lib/ens'
 import { analyzeSolanaWallet } from '../lib/solanaStats'
-import { parseLumaSlug, parseAttestation, verifyAttestation, parseIcs, parsePkpass } from '../lib/attestation'
+import { parseLumaSlug, parseAttestation, verifyAttestation, parseIcs, parseIcsFeed, parsePkpass } from '../lib/attestation'
 import { lookupSolDomain } from '../lib/sns'
 import { lookupSolanaId } from '../lib/solanaid'
 import type { PassportData } from '../lib/gitcoin'
@@ -34,6 +34,8 @@ export default function StampsStep({ passport, onDone }: Props) {
   const [eventInput, setEventInput] = useState('')
   const [eventStatus, setEventStatus] = useState<'idle' | 'verifying' | 'error'>('idle')
   const [eventError, setEventError] = useState<string | null>(null)
+  const [lumaLoading, setLumaLoading] = useState(false)
+  const [lumaInput, setLumaInput] = useState('')
 
   // Only add if not already in passport
   const addStamp = useCallback((stamp: string) => {
@@ -114,6 +116,35 @@ export default function StampsStep({ passport, onDone }: Props) {
     addStamp(stamp)
     setEventInput('')
   }, [passport.stamps, verified, addStamp])
+
+  const handleLumaImport = useCallback(async () => {
+    const input = lumaInput.trim()
+    if (!input) return
+    setEventError(null)
+    setLumaLoading(true)
+    try {
+      const proxyUrl = `/api/luma-calendar?url=${encodeURIComponent(input)}`
+      const res = await fetch(proxyUrl)
+      if (!res.ok) throw new Error('Ne mogu da učitam kalendar — proveri da li je URL ispravan')
+      const text = await res.text()
+      const names = parseIcsFeed(text)
+      if (names.length === 0) throw new Error('Nije pronađen nijedan event u kalendaru')
+      let added = 0
+      for (const name of names) {
+        const stamp = `Event?: ${name}`
+        if (!passport.stamps.includes(stamp) && !verified.includes(stamp)) {
+          addStamp(stamp)
+          added++
+        }
+      }
+      setLumaInput('')
+      if (added === 0) setEventError('Svi eventi su već dodati')
+    } catch (e) {
+      setEventError((e as Error).message)
+    } finally {
+      setLumaLoading(false)
+    }
+  }, [lumaInput, passport.stamps, verified, addStamp])
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -231,6 +262,26 @@ export default function StampsStep({ passport, onDone }: Props) {
             ))}
           </div>
         )}
+        {/* Luma calendar import */}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={lumaInput}
+            onChange={e => setLumaInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleLumaImport()}
+            placeholder="Luma iCal URL (iz Luma → Settings → Calendar)"
+            className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+          />
+          <button
+            onClick={handleLumaImport}
+            disabled={!lumaInput.trim() || lumaLoading}
+            className="text-xs px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors font-medium whitespace-nowrap"
+            style={{ background: '#FF6B35', color: '#fff' }}
+          >
+            {lumaLoading ? '...' : 'Import all'}
+          </button>
+        </div>
+
         <div className="flex gap-2">
           <input
             type="text"

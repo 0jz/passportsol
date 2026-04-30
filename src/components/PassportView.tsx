@@ -67,7 +67,7 @@ export default function PassportView({ stamps, score, threshold, ethAddress, txH
   const bonus = bonusFromStamps(stamps)
   const isVerified = passportScore >= threshold
   const { identity, events } = parseStamps(stamps)
-  const short = (s: string) => `${s.slice(0, 6)}...${s.slice(-4)}`
+  const shortTx = (s: string) => `${s.slice(0, 6)}...${s.slice(-4)}`
 
   return (
     <div className="rounded-xl border border-zinc-700 bg-zinc-900 overflow-hidden" style={{ fontFamily: 'monospace' }}>
@@ -91,7 +91,7 @@ export default function PassportView({ stamps, score, threshold, ethAddress, txH
           </p>
           {bonus > 0 && (
             <p className="text-xs text-zinc-600 mt-0.5">
-              {score.toFixed(1)} + {bonus} stamps
+              {score.toFixed(1)} Gitcoin + {bonus} pts
             </p>
           )}
         </div>
@@ -103,7 +103,7 @@ export default function PassportView({ stamps, score, threshold, ethAddress, txH
           {ethAddress && (
             <div className="flex gap-3">
               <span className="text-xs text-zinc-600 w-20 shrink-0">ETH</span>
-              <span className="text-xs text-zinc-400 truncate">{short(ethAddress)}</span>
+              <span className="text-xs text-zinc-400 break-all">{ethAddress}</span>
             </div>
           )}
           {identity.map(({ label, value }) => (
@@ -137,7 +137,7 @@ export default function PassportView({ stamps, score, threshold, ethAddress, txH
             className="text-xs break-all transition-colors hover:text-white"
             style={{ color: '#9945FF' }}
           >
-            {short(txHash)} — View on Explorer →
+            {shortTx(txHash)} — View on Explorer →
           </a>
         </div>
       )}
