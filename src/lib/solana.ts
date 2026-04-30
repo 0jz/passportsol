@@ -65,7 +65,7 @@ export async function mintPassportMemo(
   const txid = bs58.encode(rawSig)
 
   try {
-    await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false })
+    await connection.sendRawTransaction(signed.serialize(), { skipPreflight: true, maxRetries: 5 })
   } catch (e) {
     const msg = (e as Error)?.message ?? ''
     // Already processed = transaction confirmed on a previous attempt, treat as success
