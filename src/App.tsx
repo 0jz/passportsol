@@ -4,7 +4,7 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import { type PassportData } from './lib/gitcoin'
 import { mintPassportMemo } from './lib/solana'
 import EthStep from './components/EthStep'
-import ReclaimStep from './components/ReclaimStep'
+import StampsStep from './components/StampsStep'
 import SuccessCard from './components/SuccessCard'
 import VerifyPage from './components/VerifyPage'
 
@@ -156,8 +156,8 @@ export default function App() {
               )}
               {addingStamps && (
                 <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-5">
-                  <p className="text-sm font-medium mb-3">Verify Web2 Identity</p>
-                  <ReclaimStep onDone={handleReclaimDone} />
+                  <p className="text-sm font-medium mb-3">Add Stamps</p>
+                  <StampsStep passport={passport} onDone={handleReclaimDone} />
                 </div>
               )}
             </div>
