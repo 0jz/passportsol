@@ -58,14 +58,14 @@ export default function QrScanner({ onResult, onClose }: Props) {
 
   return (
     <div className="space-y-2">
-      <div className="relative rounded-lg overflow-hidden bg-zinc-950" style={{ aspectRatio: '1' }}>
+      <div className="relative rounded-lg overflow-hidden bg-zinc-950" style={{ aspectRatio: '1', width: '100%' }}>
         {!error && (
           <>
             <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
             <canvas ref={canvasRef} className="hidden" />
             {/* Viewfinder overlay */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-48 h-48 border-2 border-white/40 rounded-lg" style={{
+              <div className="w-64 h-64 border-2 border-white/40 rounded-lg" style={{
                 boxShadow: '0 0 0 9999px rgba(0,0,0,0.45)'
               }} />
             </div>
