@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { requestDeviceCode, pollForToken, fetchGithubUser } from '../lib/githubOAuth'
 import { lookupEns } from '../lib/ens'
@@ -26,6 +26,14 @@ export default function StampsStep({ passport, onDone }: Props) {
   const [userCode, setUserCode] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const autoProceedFired = useRef(false)
+
+  // Auto-proceed after GitHub verification without requiring button click
+  useEffect(() => {
+    if (githubStep !== 'done' || autoProceedFired.current) return
+    autoProceedFired.current = true
+    onDone(verified)
+  }, [githubStep, verified, onDone])
 
   // Only add if not already in passport
   const addStamp = useCallback((stamp: string) => {
