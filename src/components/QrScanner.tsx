@@ -28,7 +28,10 @@ export default function QrScanner({ onResult, onClose }: Props) {
       canvas.width = video.videoWidth
       canvas.height = video.videoHeight
       const ctx = canvas.getContext('2d')!
+      // Reduce brightness and boost contrast to help with overexposed laptop cameras
+      ctx.filter = 'brightness(0.65) contrast(1.6)'
       ctx.drawImage(video, 0, 0)
+      ctx.filter = 'none'
       const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
       const code = jsQR(img.data, img.width, img.height)
       if (code && !resultFired.current) {
@@ -75,6 +78,7 @@ export default function QrScanner({ onResult, onClose }: Props) {
           <video
             ref={videoRef}
             className="absolute inset-0 w-full h-full object-cover"
+            style={{ filter: 'brightness(0.65) contrast(1.6)' }}
             playsInline
             muted
           />
