@@ -5,6 +5,7 @@ import { lookupEns } from '../lib/ens'
 import { analyzeSolanaWallet } from '../lib/solanaStats'
 import { parseLumaSlug, parseAttestation, verifyAttestation, parseIcs, parsePkpass } from '../lib/attestation'
 import { lookupSolDomain } from '../lib/sns'
+import { lookupSolanaId } from '../lib/solanaid'
 import type { PassportData } from '../lib/gitcoin'
 
 interface Props {
@@ -24,6 +25,7 @@ export default function StampsStep({ passport, onDone }: Props) {
   const [verified, setVerified] = useState<string[]>([])
   const [ens, setEns] = useState<StampState>({ status: passport.ethAddress ? 'checking' : 'idle' })
   const [sns, setSns] = useState<StampState>({ status: wallet.publicKey ? 'checking' : 'idle' })
+  const [solanaId, setSolanaId] = useState<StampState>({ status: wallet.publicKey ? 'checking' : 'idle' })
   const [solana, setSolana] = useState<StampState>({ status: wallet.publicKey ? 'checking' : 'idle' })
   const [githubStep, setGithubStep] = useState<'idle' | 'code' | 'polling' | 'done'>('idle')
   const [userCode, setUserCode] = useState<string | null>(null)
@@ -38,6 +40,20 @@ export default function StampsStep({ passport, onDone }: Props) {
     if (passport.stamps.includes(stamp)) return
     setVerified(prev => prev.includes(stamp) ? prev : [...prev, stamp])
   }, [passport.stamps])
+
+  // Auto-detect Solana.id profile
+  useEffect(() => {
+    if (!wallet.publicKey) return
+    const existing = passport.stamps.find(s => /^SolanaID:/.test(s))
+    if (existing) {
+      setSolanaId({ status: 'already_added', value: existing.replace('SolanaID: ', '') })
+      return
+    }
+    lookupSolanaId(wallet.publicKey.toBase58()).then(profile => {
+      if (profile) { setSolanaId({ status: 'found', value: profile }); addStamp(`SolanaID: ${profile}`) }
+      else setSolanaId({ status: 'not_found' })
+    })
+  }, [wallet.publicKey, passport.stamps, addStamp])
 
   // Auto-detect .sol domain
   useEffect(() => {
@@ -186,6 +202,9 @@ export default function StampsStep({ passport, onDone }: Props) {
     <div className="space-y-2">
       {/* Solana stats */}
       <StampRow label="Solana Wallet" description="Age & activity analysis" state={solana} />
+
+      {/* Solana.id */}
+      <StampRow label="Solana.id" description="On-chain identity profile" state={solanaId} />
 
       {/* .sol domain */}
       <StampRow label=".sol Domain" description="Solana Name Service" state={sns} />

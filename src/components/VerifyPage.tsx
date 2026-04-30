@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react'
 import { useConnection } from '@solana/wallet-adapter-react'
 import { getPassportFromChain } from '../lib/solana'
-import { calculatePassportScore, bonusFromStamps } from '../lib/scoring'
+import { calculatePassportScore } from '../lib/scoring'
+import PassportView from './PassportView'
 
 function isEthAddress(addr: string) {
   return /^0x[0-9a-fA-F]{40}$/.test(addr)
@@ -95,54 +96,13 @@ export default function VerifyPage() {
       )}
 
       {result && result !== 'not_found' && (
-        <div className="rounded-xl border bg-zinc-900 overflow-hidden" style={{ borderColor: isVerified ? 'rgba(20,241,149,0.3)' : '#3f3f46' }}>
-          <div className="px-5 py-4 border-b border-zinc-800 flex justify-between items-start">
-            <div>
-              <p className="text-xs text-zinc-500 uppercase tracking-widest mb-1">Passport Score</p>
-              <p className="text-5xl font-bold" style={{ color: '#14F195' }}>
-                {calculatePassportScore(result.score, result.stamps).toFixed(1)}
-              </p>
-              {bonusFromStamps(result.stamps) > 0 && (
-                <p className="text-xs text-zinc-600 mt-1">
-                  Gitcoin {result.score.toFixed(1)} + {bonusFromStamps(result.stamps)} bonus
-                </p>
-              )}
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-zinc-500 mb-2">Status</p>
-              {isVerified ? (
-                <span className="inline-block text-xs font-semibold px-3 py-1 rounded-full" style={{ background: 'rgba(20,241,149,0.15)', color: '#14F195', border: '1px solid rgba(20,241,149,0.3)' }}>
-                  ✓ Verified Human
-                </span>
-              ) : (
-                <span className="inline-block text-xs font-medium px-3 py-1 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
-                  Below {threshold} threshold
-                </span>
-              )}
-            </div>
-          </div>
-
-          {result.stamps.length > 0 && (
-            <div className="px-5 py-3 border-b border-zinc-800">
-              <div className="flex flex-wrap gap-2">
-                {result.stamps.map(stamp => (
-                  <span key={stamp} className="text-xs bg-zinc-800 border border-zinc-700 text-zinc-300 px-2 py-1 rounded-full">
-                    {stamp}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="px-5 py-3 space-y-1">
-            {result.eth && (
-              <p className="text-xs text-zinc-500 font-mono">ETH: {result.eth}</p>
-            )}
-            <p className="text-xs text-zinc-500">
-              Verified at: {new Date(result.ts * 1000).toLocaleString()}
-            </p>
-          </div>
-        </div>
+        <PassportView
+          stamps={result.stamps}
+          score={result.score}
+          threshold={threshold}
+          ethAddress={result.eth}
+          mintedAt={result.ts}
+        />
       )}
     </div>
   )
