@@ -1,6 +1,7 @@
 const STAMP_POINTS: Array<[RegExp, number]> = [
   [/^GitHub:/,          5],
   [/^ENS:/,             5],
+  [/^SNS:/,             5],
   [/2y.+wallet/,       15],
   [/1y\+ wallet/,      10],
   [/6m\+ wallet/,       5],
