@@ -53,29 +53,9 @@ async function sendMemo(
     feePayer: wallet.publicKey,
   }).add(instruction)
 
-  // sendTransaction handles signing internally — more reliable on mobile wallets
-  if (wallet.sendTransaction) {
-    const txid = await wallet.sendTransaction(transaction, connection, {
-      skipPreflight: true,
-      maxRetries: 5,
-    })
-    await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight })
-    return txid
-  }
+  if (!wallet.sendTransaction) throw new Error('Wallet ne podržava slanje transakcija')
 
-  // Fallback for wallets that only expose signTransaction
-  if (!wallet.signTransaction) throw new Error('Wallet ne podržava potpisivanje')
-  const signed = await wallet.signTransaction(transaction)
-  const rawSig = signed.signatures[0]?.signature
-  if (!rawSig) throw new Error('Transaction signing failed')
-  const txid = bs58.encode(rawSig)
-  try {
-    await connection.sendRawTransaction(signed.serialize(), { skipPreflight: true, maxRetries: 5 })
-  } catch (e) {
-    const msg = (e as Error)?.message ?? ''
-    if (msg.includes('already been processed')) return txid
-    throw e
-  }
+  const txid = await wallet.sendTransaction(transaction, connection)
   await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight })
   return txid
 }
