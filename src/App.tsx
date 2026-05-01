@@ -79,6 +79,7 @@ export default function App() {
   const [addingStamps, setAddingStamps] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [passportDeleted, setPassportDeleted] = useState(false)
+  const [readyToSign, setReadyToSign] = useState<PendingOp | null>(null)
 
   // Process Phantom deep link redirect on mount (Chrome/Brave flow)
   useEffect(() => {
@@ -142,9 +143,16 @@ export default function App() {
       localStorage.setItem('pdl_passport', JSON.stringify(passportForOp))
     }
 
-    phantomSignAndSend({ op, txB58, blockhash, lastValidBlockHeight, minContextSlot })
-    // redirects away — nothing after this executes
+    // Store the ready op — navigation happens in executeDeepLinkSign (fresh user click)
+    setReadyToSign({ op, txB58, blockhash, lastValidBlockHeight, minContextSlot })
+    setLoading(null)
   }, [deepLinkPub, connection])
+
+  // Called from a button click directly — no async work here so Android App Link fires
+  const executeDeepLinkSign = useCallback(() => {
+    if (!readyToSign) return
+    phantomSignAndSend(readyToSign)
+  }, [readyToSign])
 
   // Restore from localStorage or chain when wallet connects; clear on disconnect
   useEffect(() => {
@@ -446,17 +454,29 @@ export default function App() {
             <StepCard number={4} title="Mint Passport On-Chain" done={step >= 4} active={step === 3} locked={step < 3}>
               {step === 3 && !txHash && (
                 <div className="flex items-center gap-3">
-                  <button
-                    onClick={mintPassport}
-                    disabled={!!loading}
-                    className="disabled:opacity-50 text-black text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
-                    style={{ background: '#14F195' }}
-                  >
-                    {loading ?? 'Mint Passport →'}
-                  </button>
-                  <button onClick={handleBackToStamps} className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors">
-                    ← Back
-                  </button>
+                  {useDeepLink && readyToSign ? (
+                    <button
+                      onClick={executeDeepLinkSign}
+                      className="text-sm font-semibold px-4 py-2 rounded-lg"
+                      style={{ background: '#9945FF', color: '#fff' }}
+                    >
+                      Open Phantom →
+                    </button>
+                  ) : (
+                    <button
+                      onClick={mintPassport}
+                      disabled={!!loading}
+                      className="disabled:opacity-50 text-black text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+                      style={{ background: '#14F195' }}
+                    >
+                      {loading ?? 'Mint Passport →'}
+                    </button>
+                  )}
+                  {!readyToSign && (
+                    <button onClick={handleBackToStamps} className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors">
+                      ← Back
+                    </button>
+                  )}
                 </div>
               )}
             </StepCard>
@@ -498,13 +518,32 @@ export default function App() {
                 </div>
               )}
 
-              <button
-                onClick={handleDelete}
-                disabled={!!loading}
-                className="w-full text-zinc-600 hover:text-red-400 text-xs py-1 transition-colors disabled:opacity-40"
-              >
-                Delete Passport
-              </button>
+              {useDeepLink && readyToSign ? (
+                <div className="p-4 rounded-xl border border-zinc-700 bg-zinc-900 space-y-2">
+                  <p className="text-sm text-zinc-300">Transaction ready — tap to open Phantom.</p>
+                  <button
+                    onClick={executeDeepLinkSign}
+                    className="w-full font-bold px-4 py-3 rounded-lg text-sm"
+                    style={{ background: '#9945FF', color: '#fff' }}
+                  >
+                    Open Phantom →
+                  </button>
+                  <button
+                    onClick={() => setReadyToSign(null)}
+                    className="w-full text-zinc-600 hover:text-zinc-400 text-xs py-1"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleDelete}
+                  disabled={!!loading}
+                  className="w-full text-zinc-600 hover:text-red-400 text-xs py-1 transition-colors disabled:opacity-40"
+                >
+                  {loading ?? 'Delete Passport'}
+                </button>
+              )}
             </div>
           )}
 
