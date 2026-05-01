@@ -50,9 +50,8 @@ function isInsidePhantom() {
   return !!(window as unknown as { phantom?: { solana?: unknown } }).phantom?.solana
 }
 
-function openInPhantomBrowser() {
-  const url = encodeURIComponent(window.location.href)
-  window.location.href = `https://phantom.app/ul/browse/${url}?ref=${url}`
+function phantomBrowseUrl() {
+  return `https://phantom.app/ul/browse/${encodeURIComponent(window.location.href)}?ref=${encodeURIComponent(window.location.origin)}`
 }
 
 // ─── App ─────────────────────────────────────────────────────────────────────
@@ -329,13 +328,13 @@ export default function App() {
           <div className="max-w-lg mx-auto space-y-2">
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs text-zinc-400">Preporučeno: otvori app unutar Phantoma.</p>
-              <button
-                onClick={openInPhantomBrowser}
+              <a
+                href={phantomBrowseUrl()}
                 className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg"
                 style={{ background: '#9945FF', color: '#fff' }}
               >
                 Otvori u Phantomu
-              </button>
+              </a>
             </div>
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs text-zinc-600">Ili poveži Phantom bez otvaranja browsera.</p>
@@ -375,11 +374,11 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2">
-                      <button onClick={openInPhantomBrowser}
-                        className="text-sm font-semibold px-4 py-2 rounded-lg w-fit"
+                      <a href={phantomBrowseUrl()}
+                        className="text-sm font-semibold px-4 py-2 rounded-lg w-fit inline-block"
                         style={{ background: '#9945FF', color: '#fff' }}>
                         Otvori u Phantomu →
-                      </button>
+                      </a>
                       <button onClick={phantomConnect}
                         className="text-xs text-zinc-500 hover:text-zinc-300 text-left">
                         ili poveži via deep link
