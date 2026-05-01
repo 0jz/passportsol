@@ -9,7 +9,7 @@ import {
   buildMemoTransaction, ensureDevnetSol, waitForSignature,
 } from './lib/solana'
 import {
-  phantomConnect, phantomSignAndSend, handleDeeplinkReturn,
+  phantomSignAndSend, handleDeeplinkReturn,
   getSession, clearSession, type PendingOp,
 } from './lib/phantom-deeplink'
 import EthStep from './components/EthStep'
@@ -332,58 +332,82 @@ export default function App() {
         </div>
       </nav>
 
-      {useDeepLink && !deepLinkPub && (
-        <div className="bg-zinc-900 border-b border-zinc-800 px-4 py-3">
-          <div className="max-w-lg mx-auto flex items-center justify-between gap-3">
-            <p className="text-xs text-zinc-400">Za najbolje iskustvo otvori app unutar Phantoma.</p>
-            <a
-              href={phantomBrowseUrl()}
-              className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg"
-              style={{ background: '#9945FF', color: '#fff' }}
-            >
-              Otvori u Phantomu
-            </a>
-          </div>
-        </div>
-      )}
-
       {page === 'verify' ? (
         <VerifyPage />
-      ) : (
-        <div className="max-w-lg mx-auto px-4 py-12">
-          <div className="text-center mb-10">
-            <h1 className="text-3xl font-bold tracking-tight mb-2">
-              Mint your Passport
-            </h1>
-            <p className="text-zinc-400 text-sm">Bring your Gitcoin reputation to Solana</p>
-          </div>
+      ) : step === 0 ? (
 
+        /* ── Landing page ──────────────────────────────────────────────────── */
+        <div className="flex flex-col items-center justify-center px-6 py-24 min-h-[80vh]">
+          <div className="text-center max-w-sm w-full">
+
+            {/* Logo */}
+            <div className="mb-2 flex justify-center">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg,#9945FF 0%,#14F195 100%)' }}>
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                  <path d="M8 22l16-12M8 16l8-6 8 6M8 10l16 12" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
+                </svg>
+              </div>
+            </div>
+
+            <h1 className="text-4xl font-bold tracking-tight mt-4 mb-2">
+              <span style={{ color: '#9945FF' }}>Solana</span>{' '}
+              <span style={{ color: '#14F195' }}>Passport</span>
+            </h1>
+            <p className="text-zinc-400 text-base mb-1">Your on-chain reputation, on Solana.</p>
+            <p className="text-zinc-600 text-sm mb-10">
+              Link Ethereum identity · Add Gitcoin stamps · Mint once, verify anywhere.
+            </p>
+
+            {/* Connect CTA */}
+            {useDeepLink ? (
+              /* Mobile in Chrome — should be rare since main.tsx auto-redirects,
+                 but shown as fallback if Phantom isn't installed */
+              <a
+                href={phantomBrowseUrl()}
+                className="inline-flex items-center gap-2 font-bold px-8 py-3.5 rounded-xl text-sm w-full justify-center"
+                style={{ background: '#9945FF', color: '#fff' }}
+              >
+                Open in Phantom
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </a>
+            ) : (
+              <WalletMultiButton style={{
+                background: '#9945FF', borderRadius: 12,
+                height: 48, fontSize: 15, width: '100%', justifyContent: 'center',
+              }} />
+            )}
+
+            {/* Feature pills */}
+            <div className="flex flex-wrap justify-center gap-2 mt-10">
+              {['Gitcoin Stamps', 'ETH Identity', 'On-chain', 'Cross-device'].map(f => (
+                <span key={f} className="text-xs px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-500">
+                  {f}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+      ) : (
+
+        /* ── Mint stepper ──────────────────────────────────────────────────── */
+        <div className="max-w-lg mx-auto px-4 py-12">
           <div className="space-y-3">
-            {/* Step 1 */}
-            <StepCard number={1} title="Connect Solana Wallet" done={step >= 1} active={step === 0}>
+            {/* Step 1 — wallet (shown as done, with disconnect option) */}
+            <StepCard number={1} title="Connect Solana Wallet" done={step >= 1} active={false}>
               <div className="flex flex-col gap-2">
-                {useDeepLink ? (
-                  deepLinkPub ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                      <p className="text-xs text-zinc-400 font-mono truncate">{deepLinkPub}</p>
-                      <button onClick={() => { clearSession(); setDeepLinkPub(null) }}
-                        className="text-xs text-zinc-600 hover:text-zinc-400 ml-auto shrink-0">Odjavi</button>
-                    </div>
-                  ) : (
-                    <a href={phantomBrowseUrl()}
-                      className="text-sm font-semibold px-4 py-2 rounded-lg w-fit inline-block"
-                      style={{ background: '#9945FF', color: '#fff' }}>
-                      Otvori u Phantomu →
-                    </a>
-                  )
+                {deepLinkPub ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                    <p className="text-xs text-zinc-400 font-mono truncate">{deepLinkPub}</p>
+                    <button onClick={() => { clearSession(); setDeepLinkPub(null) }}
+                      className="text-xs text-zinc-600 hover:text-zinc-400 ml-auto shrink-0">Disconnect</button>
+                  </div>
                 ) : (
-                  <WalletMultiButton style={{ background: '#9945FF', borderRadius: 8, height: 40, fontSize: 14 }} />
-                )}
-                {wallet.publicKey && !useDeepLink && (
-                  <p className="text-xs text-zinc-500 font-mono truncate">
-                    {wallet.publicKey.toBase58()}
-                  </p>
+                  <WalletMultiButton style={{ background: '#9945FF', borderRadius: 8, height: 36, fontSize: 13 }} />
                 )}
                 {syncing && (
                   <p className="text-xs text-zinc-500 animate-pulse">Checking for existing passport...</p>
@@ -504,6 +528,7 @@ export default function App() {
             </div>
           )}
         </div>
+
       )}
     </div>
   )
