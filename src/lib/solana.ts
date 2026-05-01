@@ -35,7 +35,7 @@ async function sendMemo(
   await ensureDevnetSol(wallet, connection)
 
   const instruction = new TransactionInstruction({
-    keys: [{ pubkey: wallet.publicKey, isSigner: true, isWritable: false }],
+    keys: [],
     programId: MEMO_PROGRAM_ID,
     data: Buffer.from(JSON.stringify(data), 'utf8'),
   })
