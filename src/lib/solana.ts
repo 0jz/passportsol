@@ -1,9 +1,8 @@
 import {
   Connection,
   PublicKey,
+  Transaction,
   TransactionInstruction,
-  TransactionMessage,
-  VersionedTransaction,
   LAMPORTS_PER_SOL,
 } from '@solana/web3.js'
 import type { WalletContextState } from '@solana/wallet-adapter-react'
@@ -48,18 +47,31 @@ async function sendMemo(
 
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash()
 
-  const message = new TransactionMessage({
-    payerKey: wallet.publicKey,
+  const transaction = new Transaction({
     recentBlockhash: blockhash,
-    instructions: [instruction],
-  }).compileToV0Message()
-
-  const transaction = new VersionedTransaction(message)
+    feePayer: wallet.publicKey,
+  }).add(instruction)
 
   if (!wallet.sendTransaction) throw new Error('Wallet ne podržava slanje transakcija')
 
-  const txid = await wallet.sendTransaction(transaction, connection)
-  await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight })
+  let txid: string
+  try {
+    txid = await wallet.sendTransaction(transaction, connection)
+  } catch (e) {
+    throw new Error(`Send failed: ${(e as Error)?.message ?? e}`)
+  }
+
+  try {
+    await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight })
+  } catch (e) {
+    // Tx was sent — return txid even if confirmation polling fails on mobile
+    const msg = (e as Error)?.message ?? ''
+    if (msg.includes('signature verification') || msg.includes('block height exceeded')) {
+      return txid
+    }
+    throw new Error(`Confirm failed: ${msg}`)
+  }
+
   return txid
 }
 
