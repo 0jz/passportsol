@@ -3,7 +3,7 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { requestDeviceCode, pollForToken, fetchGithubUser } from '../lib/githubOAuth'
 import { lookupEns } from '../lib/ens'
 import { analyzeSolanaWallet } from '../lib/solanaStats'
-import { parseLumaSlug, parseAttestation, verifyAttestation, parseIcs, parseIcsFeed, parsePkpass } from '../lib/attestation'
+import { isLumaUrl, parseLumaSlug, fetchLumaEventTitle, parseAttestation, verifyAttestation, parseIcs, parseIcsFeed, parsePkpass } from '../lib/attestation'
 import { lookupSolDomain } from '../lib/sns'
 import QrScanner from './QrScanner'
 import { lookupSolanaId } from '../lib/solanaid'
@@ -120,22 +120,22 @@ export default function StampsStep({ passport, onDone }: Props) {
     setEventInput('')
   }, [passport.stamps, verified, addStamp])
 
-  const handleQrResult = useCallback((data: string) => {
+  const handleQrResult = useCallback(async (data: string) => {
     setScanning(false)
     setEventError(null)
     setLastQrRaw(data)
-    const slug = parseLumaSlug(data)
-    if (slug) {
-      addEventStamp(slug)
+
+    if (isLumaUrl(data)) {
+      const title = await fetchLumaEventTitle(data)
+      addEventStamp(title)
       return
     }
     const attest = parseAttestation(data)
     if (attest) {
-      verifyAttestation(attest, wallet.publicKey?.toBase58() ?? '').then(result => {
-        if (!result.ok) { setEventError(result.reason ?? 'Verifikacija neuspešna'); return }
-        const issuerSuffix = result.issuerName ? ` · ${result.issuerName}` : ''
-        addStamp(`Event: ${attest.event}${issuerSuffix}`)
-      })
+      const result = await verifyAttestation(attest, wallet.publicKey?.toBase58() ?? '')
+      if (!result.ok) { setEventError(result.reason ?? 'Verifikacija neuspešna'); return }
+      const issuerSuffix = result.issuerName ? ` · ${result.issuerName}` : ''
+      addStamp(`Event: ${attest.event}${issuerSuffix}`)
       return
     }
     setEventError('QR nije prepoznat kao Luma event')
@@ -200,9 +200,9 @@ export default function StampsStep({ passport, onDone }: Props) {
     setEventError(null)
     setEventStatus('idle')
 
-    const slug = parseLumaSlug(input)
-    if (slug) {
-      addEventStamp(slug)
+    if (isLumaUrl(input)) {
+      const title = await fetchLumaEventTitle(input)
+      addEventStamp(title)
       return
     }
 

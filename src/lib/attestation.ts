@@ -51,11 +51,29 @@ export async function verifyAttestation(
   return { ok: true, issuerName: TRUSTED_ISSUERS[attest.issuer] }
 }
 
+// Returns true if input looks like a Luma URL
+export function isLumaUrl(input: string): boolean {
+  return /lu\.ma\//i.test(input)
+}
+
+// Extracts a fallback name from a Luma URL when the real title can't be fetched
 // "lu.ma/superteam-hh-2025" → "Superteam HH 2025"
-export function parseLumaSlug(input: string): string | null {
-  const match = input.match(/lu\.ma\/([a-zA-Z0-9-]+)/)
-  if (!match) return null
-  return match[1].split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+// "lu.ma/e/evt-abc123"      → "Luma Event"
+export function parseLumaSlug(input: string): string {
+  // Skip single-char path segments like /e/, /u/, /c/
+  const slug = input.match(/lu\.ma\/(?:[a-z]\/)?([a-zA-Z0-9][a-zA-Z0-9-]+)/)?.[1]
+  if (!slug || /^evt-/.test(slug)) return 'Luma Event'
+  return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+}
+
+export async function fetchLumaEventTitle(url: string): Promise<string> {
+  try {
+    const res = await fetch(`/api/luma-event?url=${encodeURIComponent(url)}`)
+    const json = await res.json() as { title?: string }
+    return json.title?.trim() || parseLumaSlug(url)
+  } catch {
+    return parseLumaSlug(url)
+  }
 }
 
 export function parseAttestation(input: string): EventAttestation | null {
