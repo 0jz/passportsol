@@ -31,6 +31,20 @@ function clearStored(addr: string) {
   localStorage.removeItem(storageKey(addr))
 }
 
+// ─── Mobile helpers ──────────────────────────────────────────────────────────
+
+function isMobileBrowser() {
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+}
+
+function isInsidePhantom() {
+  return !!(window as unknown as { phantom?: { solana?: unknown } }).phantom?.solana
+}
+
+function phantomBrowseUrl() {
+  return `https://phantom.app/ul/browse/${encodeURIComponent(window.location.href)}?ref=${encodeURIComponent(window.location.origin)}`
+}
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 type Page = 'mint' | 'verify'
@@ -206,6 +220,23 @@ export default function App() {
           </div>
         </div>
       </nav>
+
+      {isMobileBrowser() && !isInsidePhantom() && (
+        <div className="bg-zinc-900 border-b border-zinc-800 px-4 py-3">
+          <div className="max-w-lg mx-auto flex items-center justify-between gap-3">
+            <p className="text-xs text-zinc-400">
+              Za potpisivanje transakcija na mobilnom, otvori u Phantom browseru.
+            </p>
+            <a
+              href={phantomBrowseUrl()}
+              className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg"
+              style={{ background: '#9945FF', color: '#fff' }}
+            >
+              Otvori u Phantomu
+            </a>
+          </div>
+        </div>
+      )}
 
       {page === 'verify' ? (
         <VerifyPage />
