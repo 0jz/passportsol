@@ -9,7 +9,7 @@ import {
   buildMemoTransaction, ensureDevnetSol, waitForSignature,
 } from './lib/solana'
 import {
-  phantomConnect, phantomSignAndSend, handleDeeplinkReturn,
+  phantomSignAndSend, handleDeeplinkReturn,
   getSession, clearSession, type PendingOp,
 } from './lib/phantom-deeplink'
 import EthStep from './components/EthStep'
@@ -122,11 +122,14 @@ export default function App() {
       return
     }
 
-    // Inside Phantom's browser with no session: auto-connect via deep link.
-    // Navigation inside Phantom's browser is not subject to Chrome's App Link
-    // gesture restriction, so this fires without a user tap.
+    // Inside Phantom's browser: connect via injected provider.
+    // Navigating to phantom.app/ul/v1/connect from a WebView just loads the page;
+    // the OS App Link interception does not fire inside Phantom's own browser.
     if (isInsidePhantom() && !getSession()) {
-      phantomConnect()
+      const injected = (window as unknown as {
+        phantom?: { solana?: { connect(o?: object): Promise<{ publicKey: { toString(): string } }> } }
+      }).phantom?.solana
+      injected?.connect().then(r => setDeepLinkPub(r.publicKey.toString())).catch(() => {})
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -168,6 +171,39 @@ export default function App() {
     if (!readyToSign) return
     phantomSignAndSend(readyToSign)
   }, [readyToSign])
+
+  // Sign and confirm a transaction using Phantom's injected provider.
+  // Used only when inside Phantom's browser — no page navigation, no relay page.
+  const signViaInjectedProvider = useCallback(async (
+    op: PendingOp['op'],
+    passportForOp?: PassportData,
+  ): Promise<string> => {
+    const injected = (window as unknown as {
+      phantom?: { solana?: { signAndSendTransaction(tx: unknown, opts?: object): Promise<{ signature: string }> } }
+    }).phantom?.solana
+    if (!injected?.signAndSendTransaction || !deepLinkPub) throw new Error('Phantom not available')
+
+    const feePayer = new PublicKey(deepLinkPub)
+    const memoData = op === 'delete'
+      ? { v: 1, invalidated: true, ts: Math.floor(Date.now() / 1000) }
+      : {
+          v: 1,
+          eth: passportForOp?.ethAddress ?? null,
+          score: passportForOp?.score,
+          threshold: passportForOp?.threshold,
+          stamps: passportForOp?.stamps.slice(0, 20),
+          ts: Math.floor(Date.now() / 1000),
+        }
+
+    try { await ensureDevnetSol({ publicKey: feePayer } as Parameters<typeof ensureDevnetSol>[0], connection) } catch {}
+
+    const { transaction, minContextSlot } = await buildMemoTransaction(feePayer, connection, memoData)
+    const { signature } = await injected.signAndSendTransaction(transaction, {
+      skipPreflight: true, minContextSlot,
+    })
+    await waitForSignature(connection, signature)
+    return signature
+  }, [deepLinkPub, connection])
 
   // Restore from localStorage or chain when wallet connects; clear on disconnect
   useEffect(() => {
@@ -228,8 +264,17 @@ export default function App() {
     setError(null)
     if (useDeepLink && deepLinkPub) {
       setLoading('Preparing transaction...')
-      try { await triggerDeepLinkSign('remint', updated) }
-      catch (e) { setError((e as Error).message); setLoading(null) }
+      if (isInsidePhantom()) {
+        try {
+          const sig = await signViaInjectedProvider('remint', updated)
+          setPassport(updated); setTxHash(sig); setStampsReady(true)
+          saveStored(deepLinkPub, { passport: updated, txHash: sig })
+        } catch (e) { setError((e as Error).message) }
+        finally { setLoading(null) }
+      } else {
+        try { await triggerDeepLinkSign('remint', updated) }
+        catch (e) { setError((e as Error).message); setLoading(null) }
+      }
       return
     }
     try {
@@ -245,15 +290,24 @@ export default function App() {
     } finally {
       setLoading(null)
     }
-  }, [passport, wallet, connection, useDeepLink, deepLinkPub, triggerDeepLinkSign])
+  }, [passport, wallet, connection, useDeepLink, deepLinkPub, triggerDeepLinkSign, signViaInjectedProvider])
 
   const mintPassport = useCallback(async () => {
     if (!passport) return
     setError(null)
     if (useDeepLink && deepLinkPub) {
       setLoading('Preparing transaction...')
-      try { await triggerDeepLinkSign('mint', passport) }
-      catch (e) { setError((e as Error).message); setLoading(null) }
+      if (isInsidePhantom()) {
+        try {
+          const sig = await signViaInjectedProvider('mint', passport)
+          setTxHash(sig)
+          saveStored(deepLinkPub, { passport, txHash: sig })
+        } catch (e) { setError((e as Error).message) }
+        finally { setLoading(null) }
+      } else {
+        try { await triggerDeepLinkSign('mint', passport) }
+        catch (e) { setError((e as Error).message); setLoading(null) }
+      }
       return
     }
     try {
@@ -269,7 +323,7 @@ export default function App() {
     } finally {
       setLoading(null)
     }
-  }, [wallet, connection, passport, useDeepLink, deepLinkPub, triggerDeepLinkSign])
+  }, [wallet, connection, passport, useDeepLink, deepLinkPub, triggerDeepLinkSign, signViaInjectedProvider])
 
   const handleBackToEth = useCallback(() => {
     setPassport(null)
@@ -292,8 +346,18 @@ export default function App() {
     setError(null)
     if (useDeepLink && deepLinkPub) {
       setLoading('Preparing transaction...')
-      try { await triggerDeepLinkSign('delete') }
-      catch (e) { setError((e as Error).message); setLoading(null) }
+      if (isInsidePhantom()) {
+        try {
+          await signViaInjectedProvider('delete')
+          clearStored(deepLinkPub)
+          setPassport(null); setTxHash(null); setStampsReady(false); setCustomStamps([])
+          setAddingStamps(false); setPassportDeleted(true)
+        } catch (e) { setError((e as Error).message) }
+        finally { setLoading(null) }
+      } else {
+        try { await triggerDeepLinkSign('delete') }
+        catch (e) { setError((e as Error).message); setLoading(null) }
+      }
       return
     }
     try {
@@ -311,7 +375,7 @@ export default function App() {
     } finally {
       setLoading(null)
     }
-  }, [effectivePubkey, wallet, connection, useDeepLink, deepLinkPub, triggerDeepLinkSign])
+  }, [effectivePubkey, wallet, connection, useDeepLink, deepLinkPub, triggerDeepLinkSign, signViaInjectedProvider])
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
