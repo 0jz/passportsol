@@ -129,15 +129,37 @@ export type DeeplinkReturn =
   | { type: 'signed';    signature: string; pending: PendingOp }
   | { type: 'none' }
 
+const RELAY_KEY    = '__phantom_relay'
+const RELAY_TTL_MS = 5 * 60 * 1000
+
 export function handleDeeplinkReturn(): DeeplinkReturn {
-  const params          = new URLSearchParams(window.location.search)
+  // Inside Phantom's in-app browser, check for params relayed via localStorage
+  // (stored by the Android relay in main.tsx before it bounced back here).
+  const insidePhantom = !!(window as { phantom?: { solana?: unknown } }).phantom?.solana
+  let searchString = window.location.search
+  let fromRelay = false
+  if (insidePhantom) {
+    try {
+      const raw = localStorage.getItem(RELAY_KEY)
+      if (raw) {
+        const relay = JSON.parse(raw) as { params: string; ts: number }
+        if (Date.now() - relay.ts < RELAY_TTL_MS) {
+          searchString = relay.params
+          fromRelay = true
+        }
+        localStorage.removeItem(RELAY_KEY)
+      }
+    } catch { /* ignore */ }
+  }
+
+  const params          = new URLSearchParams(searchString)
   const phantomPubParam = params.get('phantom_encryption_public_key')
   const data            = params.get('data')
   const nonce           = params.get('nonce')
   if (!data || !nonce) return { type: 'none' }
 
-  // Clean URL immediately so refreshing doesn't replay
-  window.history.replaceState({}, '', window.location.pathname)
+  // Clean URL only when reading directly from window.location (not relay)
+  if (!fromRelay) window.history.replaceState({}, '', window.location.pathname)
 
   const kp = getOrCreateKeypair()
 
