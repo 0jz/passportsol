@@ -50,9 +50,6 @@ function isInsidePhantom() {
   return !!(window as unknown as { phantom?: { solana?: unknown } }).phantom?.solana
 }
 
-function phantomBrowseUrl() {
-  return `https://phantom.app/ul/browse/${encodeURIComponent(window.location.href)}?ref=${encodeURIComponent(window.location.origin)}`
-}
 
 // ─── App ─────────────────────────────────────────────────────────────────────
 
