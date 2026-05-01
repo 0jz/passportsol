@@ -9,7 +9,7 @@ import {
   buildMemoTransaction, ensureDevnetSol, waitForSignature,
 } from './lib/solana'
 import {
-  phantomSignAndSend, handleDeeplinkReturn,
+  phantomConnect, phantomSignAndSend, handleDeeplinkReturn,
   getSession, clearSession, type PendingOp,
 } from './lib/phantom-deeplink'
 import EthStep from './components/EthStep'
@@ -70,9 +70,7 @@ export default function App() {
     try { return getSession()?.walletPub ?? null } catch { return null }
   })
 
-  // Inside Phantom after relay: deepLinkPub is set before wallet.connect() resolves,
-  // so fall back to it until the standard adapter connects.
-  const effectivePubkey = useDeepLink ? deepLinkPub : (pubkeyStr ?? deepLinkPub)
+  const effectivePubkey = useDeepLink ? deepLinkPub : pubkeyStr
 
   const [page, setPage] = useState<Page>('mint')
   const [passport, setPassport] = useState<PassportData | null>(null)
@@ -85,20 +83,13 @@ export default function App() {
   const [syncing, setSyncing] = useState(false)
   const [passportDeleted, setPassportDeleted] = useState(false)
 
-  // Process Phantom deep link redirect on mount (Chrome/Brave + Android relay flow).
-  // The relay (main.tsx) encodes Phantom's callback params into the browse URL, so
-  // inside Phantom's browser the params are in window.location.search as usual.
+  // Process Phantom deep link redirect on mount (Chrome/Brave flow)
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const hasPhantomParams = urlParams.has('data') && urlParams.has('nonce')
-    if (!useDeepLink && !hasPhantomParams) return
+    if (!useDeepLink) return
     const result = handleDeeplinkReturn()
 
     if (result.type === 'connected') {
       setDeepLinkPub(result.walletPub)
-      // Relay lands user inside Phantom browser (useDeepLink=false) — auto-connect
-      // standard wallet adapter so signing works natively without deep links.
-      if (!useDeepLink) setTimeout(() => { wallet.connect().catch(() => {}) }, 100)
       return
     }
 
@@ -361,18 +352,16 @@ export default function App() {
 
             {/* Connect CTA */}
             {useDeepLink ? (
-              /* Mobile in Chrome — should be rare since main.tsx auto-redirects,
-                 but shown as fallback if Phantom isn't installed */
-              <a
-                href={phantomBrowseUrl()}
+              <button
+                onClick={phantomConnect}
                 className="inline-flex items-center gap-2 font-bold px-8 py-3.5 rounded-xl text-sm w-full justify-center"
                 style={{ background: '#9945FF', color: '#fff' }}
               >
-                Open in Phantom
+                Connect with Phantom
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-              </a>
+              </button>
             ) : (
               <WalletMultiButton style={{
                 background: '#9945FF', borderRadius: 12,
