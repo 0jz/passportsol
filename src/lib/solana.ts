@@ -52,26 +52,23 @@ async function sendMemo(
     feePayer: wallet.publicKey,
   }).add(instruction)
 
-  if (!wallet.sendTransaction) throw new Error('Wallet ne podržava slanje transakcija')
-
+  // Prefer signTransaction + sendRawTransaction so we control which RPC (devnet)
+  // the signed tx is sent to. wallet.sendTransaction hands off to the wallet's
+  // own RPC which may be mainnet, causing blockhash/signature errors on devnet.
   let txid: string
-  try {
+  if (wallet.signTransaction) {
+    const signed = await wallet.signTransaction(transaction)
+    txid = await connection.sendRawTransaction(
+      signed.serialize({ requireAllSignatures: false, verifySignatures: false }),
+      { skipPreflight: true },
+    )
+  } else if (wallet.sendTransaction) {
     txid = await wallet.sendTransaction(transaction, connection)
-  } catch (e) {
-    throw new Error(`Send failed: ${(e as Error)?.message ?? e}`)
+  } else {
+    throw new Error('Wallet ne podržava slanje transakcija')
   }
 
-  try {
-    await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight })
-  } catch (e) {
-    // Tx was sent — return txid even if confirmation polling fails on mobile
-    const msg = (e as Error)?.message ?? ''
-    if (msg.includes('signature verification') || msg.includes('block height exceeded')) {
-      return txid
-    }
-    throw new Error(`Confirm failed: ${msg}`)
-  }
-
+  await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight })
   return txid
 }
 
