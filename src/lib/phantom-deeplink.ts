@@ -4,8 +4,7 @@
 // Uses HTTPS deep links (not MWA loopback) — works in Chrome/Brave on Android.
 // Encryption: x25519 DH + XSalsa20-Poly1305 (= NaCl box).
 
-import { x25519 } from '@noble/curves/ed25519'
-import { hsalsa, xsalsa20poly1305 } from '@noble/ciphers/salsa'
+import nacl from 'tweetnacl'
 import bs58 from 'bs58'
 
 // ── Storage keys ────────────────────────────────────────────────────────────
@@ -34,28 +33,23 @@ function getOrCreateKeypair(): DLKeypair {
     const s = sessionStorage.getItem(SK.kp)
     if (s) return JSON.parse(s)
   } catch {}
-  const priv = crypto.getRandomValues(new Uint8Array(32))
-  const pub  = x25519.getPublicKey(priv)
-  const kp: DLKeypair = { priv: bs58.encode(priv), pub: bs58.encode(pub) }
+  const kpRaw = nacl.box.keyPair()
+  const kp: DLKeypair = { priv: bs58.encode(kpRaw.secretKey), pub: bs58.encode(kpRaw.publicKey) }
   sessionStorage.setItem(SK.kp, JSON.stringify(kp))
   return kp
 }
 
-function naclKey(myPrivB58: string, theirPubB58: string): Uint8Array {
-  const dh = x25519.getSharedSecret(bs58.decode(myPrivB58), bs58.decode(theirPubB58))
-  return hsalsa(dh, new Uint8Array(16))
-}
-
 function naclEncrypt(msg: string, myPrivB58: string, theirPubB58: string) {
-  const nonce = crypto.getRandomValues(new Uint8Array(24))
-  const key   = naclKey(myPrivB58, theirPubB58)
-  const bytes = xsalsa20poly1305(key, nonce).encrypt(new TextEncoder().encode(msg))
+  const nonce     = nacl.randomBytes(24)
+  const sharedKey = nacl.box.before(bs58.decode(theirPubB58), bs58.decode(myPrivB58))
+  const bytes     = nacl.box.after(new TextEncoder().encode(msg), nonce, sharedKey)
   return { nonce: bs58.encode(nonce), payload: bs58.encode(bytes) }
 }
 
 function naclDecrypt(payloadB58: string, nonceB58: string, myPrivB58: string, theirPubB58: string): unknown {
-  const key = naclKey(myPrivB58, theirPubB58)
-  const dec = xsalsa20poly1305(key, bs58.decode(nonceB58)).decrypt(bs58.decode(payloadB58))
+  const sharedKey = nacl.box.before(bs58.decode(theirPubB58), bs58.decode(myPrivB58))
+  const dec       = nacl.box.open.after(bs58.decode(payloadB58), bs58.decode(nonceB58), sharedKey)
+  if (!dec) throw new Error('Decryption failed')
   return JSON.parse(new TextDecoder().decode(dec))
 }
 
