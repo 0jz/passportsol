@@ -85,10 +85,13 @@ export default function App() {
   const [syncing, setSyncing] = useState(false)
   const [passportDeleted, setPassportDeleted] = useState(false)
 
-  // Process Phantom deep link redirect on mount (Chrome/Brave + Android relay flow)
+  // Process Phantom deep link redirect on mount (Chrome/Brave + Android relay flow).
+  // The relay (main.tsx) encodes Phantom's callback params into the browse URL, so
+  // inside Phantom's browser the params are in window.location.search as usual.
   useEffect(() => {
-    const hasRelay = (() => { try { return !!localStorage.getItem('__phantom_relay') } catch { return false } })()
-    if (!useDeepLink && !hasRelay) return
+    const urlParams = new URLSearchParams(window.location.search)
+    const hasPhantomParams = urlParams.has('data') && urlParams.has('nonce')
+    if (!useDeepLink && !hasPhantomParams) return
     const result = handleDeeplinkReturn()
 
     if (result.type === 'connected') {
