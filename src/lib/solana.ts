@@ -1,11 +1,11 @@
 import {
   Connection,
   PublicKey,
-  Transaction,
   TransactionInstruction,
+  TransactionMessage,
+  VersionedTransaction,
   LAMPORTS_PER_SOL,
 } from '@solana/web3.js'
-import bs58 from 'bs58'
 import type { WalletContextState } from '@solana/wallet-adapter-react'
 import type { PassportData } from './gitcoin'
 
@@ -48,10 +48,13 @@ async function sendMemo(
 
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash()
 
-  const transaction = new Transaction({
+  const message = new TransactionMessage({
+    payerKey: wallet.publicKey,
     recentBlockhash: blockhash,
-    feePayer: wallet.publicKey,
-  }).add(instruction)
+    instructions: [instruction],
+  }).compileToV0Message()
+
+  const transaction = new VersionedTransaction(message)
 
   if (!wallet.sendTransaction) throw new Error('Wallet ne podržava slanje transakcija')
 
