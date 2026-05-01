@@ -24,6 +24,7 @@ export interface PendingOp {
   txB58: string          // base58 unsigned serialized transaction
   blockhash: string
   lastValidBlockHeight: number
+  minContextSlot: number
 }
 
 // ── Crypto helpers ────────────────────────────────────────────────────────────
@@ -107,7 +108,7 @@ export function phantomSignAndSend(pending: PendingOp) {
     JSON.stringify({
       transaction:  pending.txB58,
       session:      sess.session,
-      sendOptions:  { skipPreflight: true },
+      sendOptions:  { skipPreflight: true, minContextSlot: pending.minContextSlot },
     }),
     kp.priv,
     sess.phantomPub,

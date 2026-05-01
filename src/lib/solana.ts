@@ -45,7 +45,8 @@ async function sendMemo(
     data: Buffer.from(JSON.stringify(data), 'utf8'),
   })
 
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash()
+  const { context, value: latestBlockhash } = await connection.getLatestBlockhashAndContext()
+  const { blockhash, lastValidBlockHeight } = latestBlockhash
 
   const transaction = new Transaction({
     recentBlockhash: blockhash,
@@ -61,7 +62,10 @@ async function sendMemo(
   ;(transaction as unknown as { serialize: typeof transaction.serialize }).serialize =
     (opts?) => _origSerialize({ requireAllSignatures: false, verifySignatures: false, ...opts })
 
-  const txid = await wallet.sendTransaction(transaction, connection, { skipPreflight: true })
+  const txid = await wallet.sendTransaction(transaction, connection, {
+    skipPreflight: true,
+    minContextSlot: context.slot,
+  })
   await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight })
   return txid
 }
@@ -72,15 +76,16 @@ export async function buildMemoTransaction(
   feePayer: PublicKey,
   connection: Connection,
   data: object,
-): Promise<{ transaction: Transaction; blockhash: string; lastValidBlockHeight: number }> {
+): Promise<{ transaction: Transaction; blockhash: string; lastValidBlockHeight: number; minContextSlot: number }> {
   const instruction = new TransactionInstruction({
     keys: [],
     programId: MEMO_PROGRAM_ID,
     data: Buffer.from(JSON.stringify(data), 'utf8'),
   })
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash()
+  const { context, value: latestBlockhash } = await connection.getLatestBlockhashAndContext()
+  const { blockhash, lastValidBlockHeight } = latestBlockhash
   const transaction = new Transaction({ recentBlockhash: blockhash, feePayer }).add(instruction)
-  return { transaction, blockhash, lastValidBlockHeight }
+  return { transaction, blockhash, lastValidBlockHeight, minContextSlot: context.slot }
 }
 
 export async function mintPassportMemo(

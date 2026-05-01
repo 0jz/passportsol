@@ -135,14 +135,14 @@ export default function App() {
     // Airdrop if needed (non-fatal)
     try { await ensureDevnetSol({ publicKey: feePayer } as Parameters<typeof ensureDevnetSol>[0], connection) } catch {}
 
-    const { transaction, blockhash, lastValidBlockHeight } = await buildMemoTransaction(feePayer, connection, memoData)
+    const { transaction, blockhash, lastValidBlockHeight, minContextSlot } = await buildMemoTransaction(feePayer, connection, memoData)
     const txB58 = bs58.encode(transaction.serialize({ requireAllSignatures: false, verifySignatures: false }))
 
     if (op !== 'delete' && passportForOp) {
       localStorage.setItem('pdl_passport', JSON.stringify(passportForOp))
     }
 
-    phantomSignAndSend({ op, txB58, blockhash, lastValidBlockHeight })
+    phantomSignAndSend({ op, txB58, blockhash, lastValidBlockHeight, minContextSlot })
     // redirects away — nothing after this executes
   }, [deepLinkPub, connection])
 
