@@ -70,7 +70,9 @@ export default function App() {
     try { return getSession()?.walletPub ?? null } catch { return null }
   })
 
-  const effectivePubkey = useDeepLink ? deepLinkPub : pubkeyStr
+  // Inside Phantom after relay: deepLinkPub is set before wallet.connect() resolves,
+  // so fall back to it until the standard adapter connects.
+  const effectivePubkey = useDeepLink ? deepLinkPub : (pubkeyStr ?? deepLinkPub)
 
   const [page, setPage] = useState<Page>('mint')
   const [passport, setPassport] = useState<PassportData | null>(null)
@@ -83,13 +85,17 @@ export default function App() {
   const [syncing, setSyncing] = useState(false)
   const [passportDeleted, setPassportDeleted] = useState(false)
 
-  // Process Phantom deep link redirect on mount (Chrome/Brave flow)
+  // Process Phantom deep link redirect on mount (Chrome/Brave + Android relay flow)
   useEffect(() => {
-    if (!useDeepLink) return
+    const hasRelay = (() => { try { return !!localStorage.getItem('__phantom_relay') } catch { return false } })()
+    if (!useDeepLink && !hasRelay) return
     const result = handleDeeplinkReturn()
 
     if (result.type === 'connected') {
       setDeepLinkPub(result.walletPub)
+      // Relay lands user inside Phantom browser (useDeepLink=false) — auto-connect
+      // standard wallet adapter so signing works natively without deep links.
+      if (!useDeepLink) setTimeout(() => { wallet.connect().catch(() => {}) }, 100)
       return
     }
 
