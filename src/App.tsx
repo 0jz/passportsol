@@ -77,6 +77,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [addingStamps, setAddingStamps] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [passportDeleted, setPassportDeleted] = useState(false)
 
   // Process Phantom deep link redirect on mount (Chrome/Brave flow)
   useEffect(() => {
@@ -105,6 +106,7 @@ export default function App() {
         if (pending.op === 'delete') {
           if (pub) clearStored(pub)
           setPassport(null); setTxHash(null); setStampsReady(false); setCustomStamps([])
+          setPassportDeleted(true)
         } else if (savedPassport && pub) {
           setPassport(savedPassport); setTxHash(signature); setStampsReady(true)
           saveStored(pub, { passport: savedPassport, txHash: signature })
@@ -285,6 +287,7 @@ export default function App() {
       setStampsReady(false)
       setCustomStamps([])
       setAddingStamps(false)
+      setPassportDeleted(true)
     } catch (e) {
       setError((e as { message?: string })?.message ?? String(e))
     } finally {
@@ -383,7 +386,7 @@ export default function App() {
             <StepCard number={2} title="Link Ethereum Identity" badge="optional" done={step >= 2} active={step === 1 && !syncing} locked={step < 1 || syncing}>
               {step === 1 && (
                 <EthStep
-                  solanaAddress={wallet.publicKey?.toBase58() ?? ''}
+                  solanaAddress={effectivePubkey ?? wallet.publicKey?.toBase58() ?? ''}
                   onDone={setPassport}
                 />
               )}
@@ -439,6 +442,16 @@ export default function App() {
               )}
             </StepCard>
           </div>
+
+          {passportDeleted && !txHash && (
+            <div className="mt-4 p-4 bg-emerald-950 border border-emerald-800 rounded-lg text-emerald-400 text-sm">
+              Pasoš je izbrisan. Možeš mintovati novi prolazeći kroz korake iznad.
+              <button
+                onClick={() => setPassportDeleted(false)}
+                className="ml-3 text-emerald-600 hover:text-emerald-400 text-xs"
+              >✕</button>
+            </div>
+          )}
 
           {txHash && passport && (
             <div className="mt-4 space-y-3">
