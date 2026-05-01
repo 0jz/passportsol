@@ -66,6 +66,23 @@ async function sendMemo(
   return txid
 }
 
+// Builds an unsigned memo transaction and returns it with blockhash info.
+// Used by the Phantom deep link flow (sign happens in Phantom, not here).
+export async function buildMemoTransaction(
+  feePayer: PublicKey,
+  connection: Connection,
+  data: object,
+): Promise<{ transaction: Transaction; blockhash: string; lastValidBlockHeight: number }> {
+  const instruction = new TransactionInstruction({
+    keys: [],
+    programId: MEMO_PROGRAM_ID,
+    data: Buffer.from(JSON.stringify(data), 'utf8'),
+  })
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash()
+  const transaction = new Transaction({ recentBlockhash: blockhash, feePayer }).add(instruction)
+  return { transaction, blockhash, lastValidBlockHeight }
+}
+
 export async function mintPassportMemo(
   wallet: WalletContextState,
   connection: Connection,

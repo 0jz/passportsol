@@ -1,8 +1,17 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
+import { PublicKey } from '@solana/web3.js'
+import bs58 from 'bs58'
 import { type PassportData } from './lib/gitcoin'
-import { mintPassportMemo, getPassportFromChain, invalidatePassport } from './lib/solana'
+import {
+  mintPassportMemo, getPassportFromChain, invalidatePassport,
+  buildMemoTransaction, ensureDevnetSol,
+} from './lib/solana'
+import {
+  phantomConnect, phantomSignAndSend, handleDeeplinkReturn,
+  getSession, clearSession, type PendingOp,
+} from './lib/phantom-deeplink'
 import EthStep from './components/EthStep'
 import StampsStep from './components/StampsStep'
 import SuccessCard from './components/SuccessCard'
@@ -41,10 +50,6 @@ function isInsidePhantom() {
   return !!(window as unknown as { phantom?: { solana?: unknown } }).phantom?.solana
 }
 
-function phantomBrowseUrl() {
-  return `https://phantom.app/ul/browse/${encodeURIComponent(window.location.href)}?ref=${encodeURIComponent(window.location.origin)}`
-}
-
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 type Page = 'mint' | 'verify'
@@ -54,6 +59,14 @@ export default function App() {
   const { connection } = useConnection()
   const wallet = useWallet()
   const pubkeyStr = useMemo(() => wallet.publicKey?.toBase58() ?? null, [wallet.publicKey])
+
+  // Deep link mode: Chrome/Brave on Android (not inside Phantom's browser)
+  const useDeepLink = useMemo(() => isMobileBrowser() && !isInsidePhantom(), [])
+  const [deepLinkPub, setDeepLinkPub] = useState<string | null>(() => {
+    try { return getSession()?.walletPub ?? null } catch { return null }
+  })
+
+  const effectivePubkey = useDeepLink ? deepLinkPub : pubkeyStr
 
   const [page, setPage] = useState<Page>('mint')
   const [passport, setPassport] = useState<PassportData | null>(null)
@@ -65,9 +78,78 @@ export default function App() {
   const [addingStamps, setAddingStamps] = useState(false)
   const [syncing, setSyncing] = useState(false)
 
+  // Process Phantom deep link redirect on mount (Chrome/Brave flow)
+  useEffect(() => {
+    if (!useDeepLink) return
+    const result = handleDeeplinkReturn()
+
+    if (result.type === 'connected') {
+      setDeepLinkPub(result.walletPub)
+      return
+    }
+
+    if (result.type === 'signed') {
+      const { signature, pending } = result
+      const savedPassport = (() => {
+        try { return JSON.parse(sessionStorage.getItem('pdl_passport') ?? 'null') as PassportData | null }
+        catch { return null }
+      })()
+      const pub = getSession()?.walletPub ?? null
+
+      setLoading('Potvrđujem transakciju...')
+      connection.confirmTransaction({
+        signature,
+        blockhash: pending.blockhash,
+        lastValidBlockHeight: pending.lastValidBlockHeight,
+      }).then(() => {
+        if (pending.op === 'delete') {
+          if (pub) clearStored(pub)
+          setPassport(null); setTxHash(null); setStampsReady(false); setCustomStamps([])
+        } else if (savedPassport && pub) {
+          setPassport(savedPassport); setTxHash(signature); setStampsReady(true)
+          saveStored(pub, { passport: savedPassport, txHash: signature })
+          sessionStorage.removeItem('pdl_passport')
+        }
+      }).catch(e => setError(`Confirmation failed: ${(e as Error).message}`))
+        .finally(() => setLoading(null))
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Helper: build + redirect to Phantom for signing (Chrome/Brave deep link path)
+  const triggerDeepLinkSign = useCallback(async (
+    op: PendingOp['op'],
+    passportForOp?: PassportData,
+  ) => {
+    if (!deepLinkPub) return
+    const feePayer = new PublicKey(deepLinkPub)
+    const memoData = op === 'delete'
+      ? { v: 1, invalidated: true, ts: Math.floor(Date.now() / 1000) }
+      : {
+          v: 1,
+          eth: passportForOp?.ethAddress ?? null,
+          score: passportForOp?.score,
+          threshold: passportForOp?.threshold,
+          stamps: passportForOp?.stamps.slice(0, 20),
+          ts: Math.floor(Date.now() / 1000),
+        }
+
+    // Airdrop if needed (non-fatal)
+    try { await ensureDevnetSol({ publicKey: feePayer } as Parameters<typeof ensureDevnetSol>[0], connection) } catch {}
+
+    const { transaction, blockhash, lastValidBlockHeight } = await buildMemoTransaction(feePayer, connection, memoData)
+    const txB58 = bs58.encode(transaction.serialize({ requireAllSignatures: false, verifySignatures: false }))
+
+    if (op !== 'delete' && passportForOp) {
+      sessionStorage.setItem('pdl_passport', JSON.stringify(passportForOp))
+    }
+
+    phantomSignAndSend({ op, txB58, blockhash, lastValidBlockHeight })
+    // redirects away — nothing after this executes
+  }, [deepLinkPub, connection])
+
   // Restore from localStorage or chain when wallet connects; clear on disconnect
   useEffect(() => {
-    if (!pubkeyStr) {
+    if (!effectivePubkey) {
       setPassport(null)
       setTxHash(null)
       setStampsReady(false)
@@ -78,7 +160,7 @@ export default function App() {
     }
 
     // Fast path: show localStorage immediately, then revalidate from chain
-    const stored = loadStored(pubkeyStr)
+    const stored = loadStored(effectivePubkey)
     if (stored) {
       setPassport(stored.passport)
       setTxHash(stored.txHash)
@@ -87,9 +169,8 @@ export default function App() {
 
     // Always check chain in background — picks up updates made on other devices
     setSyncing(true)
-    getPassportFromChain(pubkeyStr, connection).then(data => {
+    getPassportFromChain(effectivePubkey, connection).then(data => {
       if (!data) return
-      // Only update if chain has a different (newer) transaction
       if (stored && data.txSig === stored.txHash) return
       const passport: PassportData = {
         ethAddress: data.eth ?? '',
@@ -101,15 +182,15 @@ export default function App() {
       setPassport(passport)
       setTxHash(data.txSig)
       setStampsReady(true)
-      saveStored(pubkeyStr, { passport, txHash: data.txSig })
+      saveStored(effectivePubkey, { passport, txHash: data.txSig })
     }).finally(() => setSyncing(false))
-  }, [pubkeyStr, connection])
+  }, [effectivePubkey, connection])
 
   const step: Step =
     txHash ? 4 :
     passport && stampsReady ? 3 :
     passport ? 2 :
-    wallet.connected ? 1 : 0
+    (wallet.connected || !!deepLinkPub) ? 1 : 0
 
   const handleStampsDone = useCallback((newStamps: string[]) => {
     setCustomStamps(newStamps)
@@ -125,6 +206,12 @@ export default function App() {
     if (!passport || newStamps.length === 0) return
     const updated = { ...passport, stamps: [...passport.stamps, ...newStamps] }
     setError(null)
+    if (useDeepLink && deepLinkPub) {
+      setLoading('Opening Phantom...')
+      try { await triggerDeepLinkSign('remint', updated) }
+      catch (e) { setError((e as Error).message); setLoading(null) }
+      return
+    }
     try {
       setLoading('Re-minting passport with new stamps...')
       const txid = await mintPassportMemo(wallet, connection, updated)
@@ -138,11 +225,17 @@ export default function App() {
     } finally {
       setLoading(null)
     }
-  }, [passport, wallet, connection])
+  }, [passport, wallet, connection, useDeepLink, deepLinkPub, triggerDeepLinkSign])
 
   const mintPassport = useCallback(async () => {
     if (!passport) return
     setError(null)
+    if (useDeepLink && deepLinkPub) {
+      setLoading('Opening Phantom...')
+      try { await triggerDeepLinkSign('mint', passport) }
+      catch (e) { setError((e as Error).message); setLoading(null) }
+      return
+    }
     try {
       setLoading('Preparing transaction — check your wallet app...')
       const txid = await mintPassportMemo(wallet, connection, passport)
@@ -156,7 +249,7 @@ export default function App() {
     } finally {
       setLoading(null)
     }
-  }, [wallet, connection, passport])
+  }, [wallet, connection, passport, useDeepLink, deepLinkPub, triggerDeepLinkSign])
 
   const handleBackToEth = useCallback(() => {
     setPassport(null)
@@ -170,17 +263,23 @@ export default function App() {
   }, [])
 
   const handleDelete = useCallback(async () => {
-    if (!pubkeyStr) return
+    if (!effectivePubkey) return
     if (!window.confirm(
       'Ovo će poništiti pasoš na ovoj Solana adresi.\n\n' +
       'Biće kreirana nova on-chain transakcija (mali network fee).\n' +
       'Nakon toga možeš mintovati potpuno novi pasoš.'
     )) return
     setError(null)
+    if (useDeepLink && deepLinkPub) {
+      setLoading('Opening Phantom...')
+      try { await triggerDeepLinkSign('delete') }
+      catch (e) { setError((e as Error).message); setLoading(null) }
+      return
+    }
     try {
       setLoading('Poništavam pasoš...')
       await invalidatePassport(wallet, connection)
-      clearStored(pubkeyStr)
+      clearStored(effectivePubkey)
       setPassport(null)
       setTxHash(null)
       setStampsReady(false)
@@ -191,7 +290,7 @@ export default function App() {
     } finally {
       setLoading(null)
     }
-  }, [pubkeyStr, wallet, connection])
+  }, [effectivePubkey, wallet, connection, useDeepLink, deepLinkPub, triggerDeepLinkSign])
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
@@ -221,19 +320,17 @@ export default function App() {
         </div>
       </nav>
 
-      {isMobileBrowser() && !isInsidePhantom() && (
+      {useDeepLink && !deepLinkPub && (
         <div className="bg-zinc-900 border-b border-zinc-800 px-4 py-3">
           <div className="max-w-lg mx-auto flex items-center justify-between gap-3">
-            <p className="text-xs text-zinc-400">
-              Za potpisivanje transakcija na mobilnom, otvori u Phantom browseru.
-            </p>
-            <a
-              href={phantomBrowseUrl()}
+            <p className="text-xs text-zinc-400">Poveži Phantom wallet za Chrome/Brave.</p>
+            <button
+              onClick={phantomConnect}
               className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg"
               style={{ background: '#9945FF', color: '#fff' }}
             >
-              Otvori u Phantomu
-            </a>
+              Poveži Phantom
+            </button>
           </div>
         </div>
       )}
@@ -253,8 +350,25 @@ export default function App() {
             {/* Step 1 */}
             <StepCard number={1} title="Connect Solana Wallet" done={step >= 1} active={step === 0}>
               <div className="flex flex-col gap-2">
-                <WalletMultiButton style={{ background: '#9945FF', borderRadius: 8, height: 40, fontSize: 14 }} />
-                {wallet.publicKey && (
+                {useDeepLink ? (
+                  deepLinkPub ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                      <p className="text-xs text-zinc-400 font-mono truncate">{deepLinkPub}</p>
+                      <button onClick={() => { clearSession(); setDeepLinkPub(null) }}
+                        className="text-xs text-zinc-600 hover:text-zinc-400 ml-auto shrink-0">Odjavi</button>
+                    </div>
+                  ) : (
+                    <button onClick={phantomConnect}
+                      className="text-sm font-semibold px-4 py-2 rounded-lg w-fit"
+                      style={{ background: '#9945FF', color: '#fff' }}>
+                      Poveži Phantom
+                    </button>
+                  )
+                ) : (
+                  <WalletMultiButton style={{ background: '#9945FF', borderRadius: 8, height: 40, fontSize: 14 }} />
+                )}
+                {wallet.publicKey && !useDeepLink && (
                   <p className="text-xs text-zinc-500 font-mono truncate">
                     {wallet.publicKey.toBase58()}
                   </p>
