@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Solana Passport</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #09090b;
+      color: #fff;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      text-align: center;
+      padding: 2rem 1.5rem;
+      max-width: 320px;
+      width: 100%;
+    }
+    .logo {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #9945FF 0%, #14F195 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.25rem;
+    }
+    h1 { font-size: 1.125rem; font-weight: 600; margin-bottom: .5rem; }
+    p  { color: #a1a1aa; font-size: .875rem; line-height: 1.5; margin-bottom: 1.5rem; }
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .5rem;
+      background: #9945FF;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: .875rem;
+      padding: .875rem 2rem;
+      border-radius: .75rem;
+      width: 100%;
+    }
+    .skip { display: block; margin-top: 1rem; color: #52525b; font-size: .75rem; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+        <path d="M8 22l16-12M8 16l8-6 8 6M8 10l16 12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h1 id="title">Back to Solana Passport</h1>
+    <p  id="msg">Tap below to continue in Phantom.</p>
+    <a  id="btn" class="btn" href="#">
+      Open in Phantom
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <a class="skip" href="/">Continue in browser</a>
+  </div>
+  <script>
+    (function () {
+      var insidePhantom = !!(window.phantom && window.phantom.solana);
+      var search = window.location.search;
+
+      // Already inside Phantom's browser — pass params straight to the app
+      if (insidePhantom) {
+        window.location.replace('/' + search);
+        return;
+      }
+
+      var params = new URLSearchParams(search);
+      var hasResponse = params.has('data') && params.has('nonce');
+      var hasError    = params.has('errorCode');
+
+      if (!hasResponse && !hasError) {
+        window.location.replace('/');
+        return;
+      }
+
+      if (hasError) {
+        document.getElementById('title').textContent = 'Transaction cancelled';
+        document.getElementById('msg').textContent   = 'Tap below to return.';
+        // Redirect back to app root (no error params — nothing to decode)
+        var browseUrl = 'https://phantom.app/ul/browse/' +
+          encodeURIComponent(window.location.origin + '/') +
+          '?ref=' + encodeURIComponent(window.location.origin);
+        document.getElementById('btn').href = browseUrl;
+        return;
+      }
+
+      // Success — forward Phantom response params into the app URL so that
+      // handleDeeplinkReturn() can decrypt them inside Phantom's browser.
+      // The keypair / session that were used to build the deep link request
+      // are still in Phantom's localStorage, so decryption will succeed.
+      var innerUrl = window.location.origin + '/' + search;
+      var browseUrl = 'https://phantom.app/ul/browse/' +
+        encodeURIComponent(innerUrl) +
+        '?ref=' + encodeURIComponent(window.location.origin);
+
+      document.getElementById('btn').href = browseUrl;
+    })();
+  </script>
+</body>
+</html>

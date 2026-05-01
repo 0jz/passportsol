@@ -81,6 +81,9 @@ export function clearPending() {
 // ── Deep link launchers ───────────────────────────────────────────────────────
 
 function redirectBase() {
+  if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    return window.location.origin + '/relay.html'
+  }
   return window.location.origin + window.location.pathname
 }
 
