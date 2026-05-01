@@ -6,7 +6,7 @@ import bs58 from 'bs58'
 import { type PassportData } from './lib/gitcoin'
 import {
   mintPassportMemo, getPassportFromChain, invalidatePassport,
-  buildMemoTransaction, ensureDevnetSol,
+  buildMemoTransaction, ensureDevnetSol, waitForSignature,
 } from './lib/solana'
 import {
   phantomConnect, phantomSignAndSend, handleDeeplinkReturn,
@@ -98,11 +98,7 @@ export default function App() {
       const pub = getSession()?.walletPub ?? null
 
       setLoading('Potvrđujem transakciju...')
-      connection.confirmTransaction({
-        signature,
-        blockhash: pending.blockhash,
-        lastValidBlockHeight: pending.lastValidBlockHeight,
-      }).then(() => {
+      waitForSignature(connection, signature).then(() => {
         if (pending.op === 'delete') {
           if (pub) clearStored(pub)
           setPassport(null); setTxHash(null); setStampsReady(false); setCustomStamps([])

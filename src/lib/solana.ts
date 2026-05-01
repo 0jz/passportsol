@@ -111,6 +111,23 @@ export async function invalidatePassport(
   })
 }
 
+// Waits for a signature that was already submitted (e.g. by Phantom deep link).
+// Does NOT use blockhash expiry — safe to call after a redirect round-trip.
+export async function waitForSignature(
+  connection: Connection,
+  signature: string,
+  timeoutMs = 45000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const { value } = await connection.getSignatureStatus(signature, { searchTransactionHistory: true })
+    if (value?.err) throw new Error(`Transaction failed: ${JSON.stringify(value.err)}`)
+    if (value?.confirmationStatus === 'confirmed' || value?.confirmationStatus === 'finalized') return
+    await new Promise(r => setTimeout(r, 2000))
+  }
+  throw new Error('Confirmation timeout')
+}
+
 export async function getPassportFromChain(
   address: string,
   connection: Connection,
