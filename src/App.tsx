@@ -50,10 +50,6 @@ function isInsidePhantom() {
   return !!(window as unknown as { phantom?: { solana?: unknown } }).phantom?.solana
 }
 
-function isAndroid() {
-  return /Android/i.test(navigator.userAgent)
-}
-
 function phantomBrowseUrl() {
   const url = encodeURIComponent(window.location.href)
   const ref = encodeURIComponent(window.location.origin)
@@ -375,22 +371,10 @@ export default function App() {
             {/* Connect CTA */}
             {useDeepLink ? (
               isInsidePhantom() ? (
-                // iOS inside Phantom's browser: auto-connecting via deep link
+                // Inside Phantom's browser: auto-connecting via deep link
                 <p className="text-zinc-500 text-sm animate-pulse">Connecting to Phantom...</p>
-              ) : isAndroid() ? (
-                // Android: phantom://browse/ just opens Chrome — use direct deep link connect instead
-                <button
-                  onClick={phantomConnect}
-                  className="inline-flex items-center gap-2 font-bold px-8 py-3.5 rounded-xl text-sm w-full justify-center"
-                  style={{ background: '#9945FF', color: '#fff' }}
-                >
-                  Connect with Phantom
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
               ) : (
-                // iOS outside Phantom: Universal Link opens Phantom's native browser
+                // Outside Phantom: open app in Phantom's built-in browser
                 <a
                   href={phantomBrowseUrl()}
                   className="inline-flex items-center gap-2 font-bold px-8 py-3.5 rounded-xl text-sm w-full justify-center"
