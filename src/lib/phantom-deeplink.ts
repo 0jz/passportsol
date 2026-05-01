@@ -30,12 +30,12 @@ export interface PendingOp {
 
 function getOrCreateKeypair(): DLKeypair {
   try {
-    const s = sessionStorage.getItem(SK.kp)
+    const s = localStorage.getItem(SK.kp)
     if (s) return JSON.parse(s)
   } catch {}
   const kpRaw = nacl.box.keyPair()
   const kp: DLKeypair = { priv: bs58.encode(kpRaw.secretKey), pub: bs58.encode(kpRaw.publicKey) }
-  sessionStorage.setItem(SK.kp, JSON.stringify(kp))
+  localStorage.setItem(SK.kp, JSON.stringify(kp))
   return kp
 }
 
@@ -56,25 +56,25 @@ function naclDecrypt(payloadB58: string, nonceB58: string, myPrivB58: string, th
 // ── Session helpers ───────────────────────────────────────────────────────────
 
 export function getSession(): DLSession | null {
-  try { return JSON.parse(sessionStorage.getItem(SK.session) ?? 'null') } catch { return null }
+  try { return JSON.parse(localStorage.getItem(SK.session) ?? 'null') } catch { return null }
 }
 
 export function clearSession() {
-  sessionStorage.removeItem(SK.session)
-  sessionStorage.removeItem(SK.kp)
-  sessionStorage.removeItem(SK.pending)
+  localStorage.removeItem(SK.session)
+  localStorage.removeItem(SK.kp)
+  localStorage.removeItem(SK.pending)
 }
 
 function setPending(p: PendingOp) {
-  sessionStorage.setItem(SK.pending, JSON.stringify(p))
+  localStorage.setItem(SK.pending, JSON.stringify(p))
 }
 
 export function getPending(): PendingOp | null {
-  try { return JSON.parse(sessionStorage.getItem(SK.pending) ?? 'null') } catch { return null }
+  try { return JSON.parse(localStorage.getItem(SK.pending) ?? 'null') } catch { return null }
 }
 
 export function clearPending() {
-  sessionStorage.removeItem(SK.pending)
+  localStorage.removeItem(SK.pending)
 }
 
 // ── Deep link launchers ───────────────────────────────────────────────────────
@@ -147,7 +147,7 @@ export function handleDeeplinkReturn(): DeeplinkReturn {
       const result = naclDecrypt(data, nonce, kp.priv, phantomPubParam) as {
         public_key: string; session: string
       }
-      sessionStorage.setItem(SK.session, JSON.stringify({
+      localStorage.setItem(SK.session, JSON.stringify({
         phantomPub: phantomPubParam,
         session:    result.session,
         walletPub:  result.public_key,

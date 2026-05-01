@@ -91,7 +91,7 @@ export default function App() {
     if (result.type === 'signed') {
       const { signature, pending } = result
       const savedPassport = (() => {
-        try { return JSON.parse(sessionStorage.getItem('pdl_passport') ?? 'null') as PassportData | null }
+        try { return JSON.parse(localStorage.getItem('pdl_passport') ?? 'null') as PassportData | null }
         catch { return null }
       })()
       const pub = getSession()?.walletPub ?? null
@@ -108,7 +108,7 @@ export default function App() {
         } else if (savedPassport && pub) {
           setPassport(savedPassport); setTxHash(signature); setStampsReady(true)
           saveStored(pub, { passport: savedPassport, txHash: signature })
-          sessionStorage.removeItem('pdl_passport')
+          localStorage.removeItem('pdl_passport')
         }
       }).catch(e => setError(`Confirmation failed: ${(e as Error).message}`))
         .finally(() => setLoading(null))
@@ -140,7 +140,7 @@ export default function App() {
     const txB58 = bs58.encode(transaction.serialize({ requireAllSignatures: false, verifySignatures: false }))
 
     if (op !== 'delete' && passportForOp) {
-      sessionStorage.setItem('pdl_passport', JSON.stringify(passportForOp))
+      localStorage.setItem('pdl_passport', JSON.stringify(passportForOp))
     }
 
     phantomSignAndSend({ op, txB58, blockhash, lastValidBlockHeight })
