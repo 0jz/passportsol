@@ -52,22 +52,11 @@ async function sendMemo(
     feePayer: wallet.publicKey,
   }).add(instruction)
 
-  // Prefer signTransaction + sendRawTransaction so we control which RPC (devnet)
-  // the signed tx is sent to. wallet.sendTransaction hands off to the wallet's
-  // own RPC which may be mainnet, causing blockhash/signature errors on devnet.
-  let txid: string
-  if (wallet.signTransaction) {
-    const signed = await wallet.signTransaction(transaction)
-    txid = await connection.sendRawTransaction(
-      signed.serialize({ requireAllSignatures: false, verifySignatures: false }),
-      { skipPreflight: true },
-    )
-  } else if (wallet.sendTransaction) {
-    txid = await wallet.sendTransaction(transaction, connection)
-  } else {
-    throw new Error('Wallet ne podržava slanje transakcija')
-  }
+  if (!wallet.sendTransaction) throw new Error('Wallet ne podržava slanje transakcija')
 
+  // skipPreflight bypasses the wallet's internal simulation (which may run against
+  // the wrong RPC on mobile); the actual validator still verifies signatures.
+  const txid = await wallet.sendTransaction(transaction, connection, { skipPreflight: true })
   await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight })
   return txid
 }

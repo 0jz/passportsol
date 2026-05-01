@@ -63,19 +63,20 @@ export default function App() {
       return
     }
 
-    // Fast path: localStorage hit
+    // Fast path: show localStorage immediately, then revalidate from chain
     const stored = loadStored(pubkeyStr)
     if (stored) {
       setPassport(stored.passport)
       setTxHash(stored.txHash)
       setStampsReady(true)
-      return
     }
 
-    // Slow path: check the chain (works on any device, any browser)
+    // Always check chain in background — picks up updates made on other devices
     setSyncing(true)
     getPassportFromChain(pubkeyStr, connection).then(data => {
       if (!data) return
+      // Only update if chain has a different (newer) transaction
+      if (stored && data.txSig === stored.txHash) return
       const passport: PassportData = {
         ethAddress: data.eth ?? '',
         score: data.score,
@@ -86,7 +87,6 @@ export default function App() {
       setPassport(passport)
       setTxHash(data.txSig)
       setStampsReady(true)
-      // Populate localStorage so next load is instant
       saveStored(pubkeyStr, { passport, txHash: data.txSig })
     }).finally(() => setSyncing(false))
   }, [pubkeyStr, connection])
