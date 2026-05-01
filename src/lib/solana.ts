@@ -16,11 +16,17 @@ export async function ensureDevnetSol(
   connection: Connection,
 ): Promise<void> {
   if (!wallet.publicKey) return
-  const balance = await connection.getBalance(wallet.publicKey)
-  if (balance < 0.005 * LAMPORTS_PER_SOL) {
+  try {
+    const balance = await connection.getBalance(wallet.publicKey)
+    if (balance >= 0.005 * LAMPORTS_PER_SOL) return
     const sig = await connection.requestAirdrop(wallet.publicKey, LAMPORTS_PER_SOL)
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash()
-    await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight })
+    await Promise.race([
+      connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }),
+      new Promise<void>((_, reject) => setTimeout(() => reject(new Error('timeout')), 12000)),
+    ])
+  } catch {
+    // Non-fatal — proceed to transaction; wallet may already have enough SOL
   }
 }
 

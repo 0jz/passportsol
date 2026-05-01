@@ -130,7 +130,7 @@ export default function App() {
     if (!passport) return
     setError(null)
     try {
-      setLoading('Requesting devnet SOL if needed...')
+      setLoading('Preparing transaction — check your wallet app...')
       const txid = await mintPassportMemo(wallet, connection, passport)
       setTxHash(txid)
       if (wallet.publicKey) {
