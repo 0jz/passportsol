@@ -21,14 +21,15 @@ export default async function handler(req: Request): Promise<Response> {
   })
   const html = await res.text()
 
-  // Try og:title first, then <title>
   const title =
     html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i)?.[1] ??
     html.match(/<meta\s+content="([^"]+)"\s+property="og:title"/i)?.[1] ??
-    html.match(/<title>([^<]+)<\/title>/i)?.[1]?.replace(/\s*[|\-–].*$/, '').trim() ??
+    html.match(/<meta\s+name="twitter:title"\s+content="([^"]+)"/i)?.[1] ??
+    html.match(/<meta\s+content="([^"]+)"\s+name="twitter:title"/i)?.[1] ??
+    html.match(/<title>([^<]+)<\/title>/i)?.[1]?.split(/[|\-–]/)[0].trim() ??
     null
 
-  return new Response(JSON.stringify({ title }), {
+  return new Response(JSON.stringify({ title, ok: res.ok, status: res.status }), {
     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
   })
 }

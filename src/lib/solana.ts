@@ -30,7 +30,7 @@ async function sendMemo(
   connection: Connection,
   data: object,
 ): Promise<string> {
-  if (!wallet.publicKey || !wallet.signTransaction) throw new Error('Wallet nije connectan')
+  if (!wallet.publicKey) throw new Error('Wallet nije connectan')
 
   await ensureDevnetSol(wallet, connection)
 
@@ -47,12 +47,22 @@ async function sendMemo(
     feePayer: wallet.publicKey,
   }).add(instruction)
 
-  const signed = await wallet.signTransaction(transaction)
+  // sendTransaction handles signing internally — more reliable on mobile wallets
+  if (wallet.sendTransaction) {
+    const txid = await wallet.sendTransaction(transaction, connection, {
+      skipPreflight: true,
+      maxRetries: 5,
+    })
+    await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight })
+    return txid
+  }
 
+  // Fallback for wallets that only expose signTransaction
+  if (!wallet.signTransaction) throw new Error('Wallet ne podržava potpisivanje')
+  const signed = await wallet.signTransaction(transaction)
   const rawSig = signed.signatures[0]?.signature
   if (!rawSig) throw new Error('Transaction signing failed')
   const txid = bs58.encode(rawSig)
-
   try {
     await connection.sendRawTransaction(signed.serialize(), { skipPreflight: true, maxRetries: 5 })
   } catch (e) {
@@ -60,7 +70,6 @@ async function sendMemo(
     if (msg.includes('already been processed')) return txid
     throw e
   }
-
   await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight })
   return txid
 }
