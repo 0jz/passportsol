@@ -52,27 +52,16 @@ async function sendMemo(
     feePayer: wallet.publicKey,
   }).add(instruction)
 
-  // MWA adapter (v2.2.8) bug: calls transaction.serialize() on unsigned tx which
-  // throws "Signature verification failed" before Phantom is ever invoked.
-  // Patch serialize so the adapter can produce the bytes it needs.
+  if (!wallet.sendTransaction) throw new Error('Wallet ne podržava slanje transakcija')
+
+  // MWA adapter (v2.2.8) bug: sendTransaction calls transaction.serialize() on the
+  // unsigned tx before handing it to Phantom, which throws by default. Patch serialize
+  // to allow unsigned serialization so the bytes reach Phantom's signAndSendTransaction.
   const _origSerialize = transaction.serialize.bind(transaction)
   ;(transaction as unknown as { serialize: typeof transaction.serialize }).serialize =
     (opts?) => _origSerialize({ requireAllSignatures: false, verifySignatures: false, ...opts })
 
-  let txid: string
-  if (wallet.signTransaction) {
-    // Sign-only: we control which RPC (devnet) the tx is sent to.
-    const signed = await wallet.signTransaction(transaction)
-    txid = await connection.sendRawTransaction(
-      signed.serialize({ requireAllSignatures: false, verifySignatures: false }),
-      { skipPreflight: true },
-    )
-  } else if (wallet.sendTransaction) {
-    txid = await wallet.sendTransaction(transaction, connection, { skipPreflight: true })
-  } else {
-    throw new Error('Wallet ne podržava slanje transakcija')
-  }
-
+  const txid = await wallet.sendTransaction(transaction, connection, { skipPreflight: true })
   await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight })
   return txid
 }
