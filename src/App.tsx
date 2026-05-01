@@ -50,14 +50,13 @@ function isInsidePhantom() {
   return !!(window as unknown as { phantom?: { solana?: unknown } }).phantom?.solana
 }
 
+function isAndroid() {
+  return /Android/i.test(navigator.userAgent)
+}
+
 function phantomBrowseUrl() {
   const url = encodeURIComponent(window.location.href)
   const ref = encodeURIComponent(window.location.origin)
-  // iOS: HTTPS Universal Link opens Phantom's in-app browser directly
-  // Android: phantom:// custom scheme
-  if (/Android/i.test(navigator.userAgent)) {
-    return `phantom://browse/${url}?ref=${ref}`
-  }
   return `https://phantom.app/ul/browse/${url}?ref=${ref}`
 }
 
@@ -376,10 +375,22 @@ export default function App() {
             {/* Connect CTA */}
             {useDeepLink ? (
               isInsidePhantom() ? (
-                // Inside Phantom browser: auto-connecting, no button needed
+                // iOS inside Phantom's browser: auto-connecting via deep link
                 <p className="text-zinc-500 text-sm animate-pulse">Connecting to Phantom...</p>
+              ) : isAndroid() ? (
+                // Android: phantom://browse/ just opens Chrome — use direct deep link connect instead
+                <button
+                  onClick={phantomConnect}
+                  className="inline-flex items-center gap-2 font-bold px-8 py-3.5 rounded-xl text-sm w-full justify-center"
+                  style={{ background: '#9945FF', color: '#fff' }}
+                >
+                  Connect with Phantom
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
               ) : (
-                // Outside Phantom browser: open app inside Phantom
+                // iOS outside Phantom: Universal Link opens Phantom's native browser
                 <a
                   href={phantomBrowseUrl()}
                   className="inline-flex items-center gap-2 font-bold px-8 py-3.5 rounded-xl text-sm w-full justify-center"
