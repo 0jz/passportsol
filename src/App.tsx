@@ -73,11 +73,19 @@ export default function App() {
   const { connection } = useConnection()
   const wallet = useWallet()
   const pubkeyStr = useMemo(() => wallet.publicKey?.toBase58() ?? null, [wallet.publicKey])
+  const mobileBrowser = useMemo(() => isMobileBrowser(), [])
 
-  // Deep link mode: all mobile users (inside or outside Phantom's browser).
-  // Outside Phantom: 'Open in Phantom' redirects to Phantom's browser.
-  // Inside Phantom: auto-connect via deep link, then sign via deep link.
-  const useDeepLink = useMemo(() => isMobileBrowser(), [])
+  // Deep-link flow is opt-in and used only as a Phantom fallback.
+  // Default path for all users is wallet-adapter (connect/sign/return).
+  const [useDeepLink, setUseDeepLink] = useState<boolean>(() => {
+    if (isInsidePhantom()) return true
+    try {
+      const params = new URLSearchParams(window.location.search)
+      return !!getSession() || params.has('pdl_pending') || (params.has('data') && params.has('nonce'))
+    } catch {
+      return !!getSession()
+    }
+  })
   const [deepLinkPub, setDeepLinkPub] = useState<string | null>(() => {
     try { return getSession()?.walletPub ?? null } catch { return null }
   })
@@ -496,28 +504,26 @@ export default function App() {
             </p>
 
             {/* Connect CTA */}
-            {useDeepLink ? (
-              isInsidePhantom() ? (
-                // Inside Phantom's browser: auto-connecting via deep link
-                <p className="text-zinc-500 text-sm animate-pulse">Connecting to Phantom...</p>
-              ) : (
-                // Outside Phantom: open app in Phantom's built-in browser
-                <a
-                  href={phantomBrowseUrl()}
-                  className="inline-flex items-center gap-2 font-bold px-8 py-3.5 rounded-xl text-sm w-full justify-center"
-                  style={{ background: '#9945FF', color: '#fff', textDecoration: 'none' }}
-                >
-                  Open in Phantom
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </a>
-              )
+            {useDeepLink && isInsidePhantom() ? (
+              <p className="text-zinc-500 text-sm animate-pulse">Connecting to Phantom...</p>
             ) : (
-              <WalletMultiButton style={{
-                background: '#9945FF', borderRadius: 12,
-                height: 48, fontSize: 15, width: '100%', justifyContent: 'center',
-              }} />
+              <div className="space-y-2">
+                <WalletMultiButton style={{
+                  background: '#9945FF', borderRadius: 12,
+                  height: 48, fontSize: 15, width: '100%', justifyContent: 'center',
+                }} />
+                {mobileBrowser && !isInsidePhantom() && (
+                  <button
+                    onClick={() => {
+                      setUseDeepLink(true)
+                      window.location.href = phantomBrowseUrl()
+                    }}
+                    className="w-full text-zinc-500 hover:text-zinc-300 text-xs py-1 transition-colors"
+                  >
+                    Trouble with mobile wallet? Use Phantom fallback
+                  </button>
+                )}
+              </div>
             )}
 
             {/* Feature pills */}
