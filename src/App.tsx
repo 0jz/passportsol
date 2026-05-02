@@ -452,6 +452,25 @@ export default function App() {
     }
   }, [effectivePubkey, wallet, connection, useDeepLink, deepLinkPub, triggerDeepLinkSign, signViaInjectedProvider])
 
+  if (mobileBrowser) {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center px-6">
+        <div className="max-w-sm w-full text-center space-y-4">
+          <h1 className="text-3xl font-bold tracking-tight">
+            <span style={{ color: '#9945FF' }}>Solana</span>{' '}
+            <span style={{ color: '#14F195' }}>Passport</span>
+          </h1>
+          <p className="text-zinc-300 text-sm">
+            Mobile version is coming soon for Android and iOS.
+          </p>
+          <p className="text-zinc-500 text-xs">
+            Please use desktop browser for now while we finalize wallet transaction reliability.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
 
