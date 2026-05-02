@@ -91,7 +91,7 @@ export default function App() {
   })
   const [readyToSign, setReadyToSign] = useState<PendingOp | null>(null)
 
-  const effectivePubkey = useDeepLink ? deepLinkPub : pubkeyStr
+  const effectivePubkey = useDeepLink ? (deepLinkPub ?? pubkeyStr) : pubkeyStr
 
   const [page, setPage] = useState<Page>('mint')
   const [passport, setPassport] = useState<PassportData | null>(null)
@@ -103,6 +103,23 @@ export default function App() {
   const [addingStamps, setAddingStamps] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [passportDeleted, setPassportDeleted] = useState(false)
+
+  const connectInsidePhantom = useCallback(async () => {
+    const injected = (window as unknown as {
+      phantom?: { solana?: { connect(o?: object): Promise<{ publicKey: { toString(): string } }> } }
+    }).phantom?.solana
+    if (!injected?.connect) {
+      setError('Phantom provider nije dostupan u ovom browseru.')
+      return
+    }
+    try {
+      setError(null)
+      const r = await injected.connect()
+      setDeepLinkPub(r.publicKey.toString())
+    } catch (e) {
+      setError((e as Error).message || 'Phantom connect nije uspeo')
+    }
+  }, [])
 
   // Process deep link redirect on mount; auto-connect when inside Phantom browser
   useEffect(() => {
@@ -142,10 +159,7 @@ export default function App() {
     // Navigating to phantom.app/ul/v1/connect from a WebView just loads the page;
     // the OS App Link interception does not fire inside Phantom's own browser.
     if (isInsidePhantom() && !getSession()) {
-      const injected = (window as unknown as {
-        phantom?: { solana?: { connect(o?: object): Promise<{ publicKey: { toString(): string } }> } }
-      }).phantom?.solana
-      injected?.connect().then(r => setDeepLinkPub(r.publicKey.toString())).catch(() => {})
+      connectInsidePhantom().catch(() => {})
     }
 
     // If user opened this page via Phantom browse deeplink with a prepared tx,
@@ -164,7 +178,7 @@ export default function App() {
         window.history.replaceState({}, '', window.location.pathname)
       }
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [connectInsidePhantom, useDeepLink])
 
   // Helper: build tx and store as readyToSign — actual navigation happens in
   // executeDeepLinkSign (fresh user click), preserving the gesture chain.
@@ -505,7 +519,16 @@ export default function App() {
 
             {/* Connect CTA */}
             {useDeepLink && isInsidePhantom() ? (
-              <p className="text-zinc-500 text-sm animate-pulse">Connecting to Phantom...</p>
+              <div className="space-y-2">
+                <button
+                  onClick={connectInsidePhantom}
+                  className="inline-flex items-center gap-2 font-bold px-8 py-3.5 rounded-xl text-sm w-full justify-center"
+                  style={{ background: '#9945FF', color: '#fff', textDecoration: 'none' }}
+                >
+                  Connect Phantom
+                </button>
+                <p className="text-zinc-500 text-xs">Ako transakcija ne iskoči automatski, klikni connect pa pokušaj ponovo.</p>
+              </div>
             ) : (
               <div className="space-y-2">
                 <WalletMultiButton style={{
@@ -751,3 +774,4 @@ function StepCard({
     </div>
   )
 }
+
