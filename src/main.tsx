@@ -13,7 +13,10 @@ import './index.css'
 import App from './App.tsx'
 
 function Providers({ children }: { children: React.ReactNode }) {
-  const endpoint = useMemo(() => clusterApiUrl(WalletAdapterNetwork.Devnet), [])
+  const endpoint = useMemo(
+    () => import.meta.env.VITE_SOLANA_RPC_URL || clusterApiUrl(WalletAdapterNetwork.Devnet),
+    [],
+  )
   // WalletProvider auto-detects any Wallet Standard wallet (Phantom, Solflare, Backpack, etc.)
   // LedgerWalletAdapter is listed explicitly because Ledger doesn't implement the standard
   const wallets = useMemo(() => [new LedgerWalletAdapter()], [])
