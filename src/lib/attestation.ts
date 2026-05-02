@@ -51,31 +51,6 @@ export async function verifyAttestation(
   return { ok: true, issuerName: TRUSTED_ISSUERS[attest.issuer] }
 }
 
-// Returns true if input looks like a Luma URL
-export function isLumaUrl(input: string): boolean {
-  return /lu\.ma\//i.test(input)
-}
-
-// Extracts a fallback name from a Luma URL when the real title can't be fetched
-// "lu.ma/superteam-hh-2025" → "Superteam HH 2025"
-// "lu.ma/e/evt-abc123"      → "Luma Event"
-export function parseLumaSlug(input: string): string {
-  // Skip single-char path segments like /e/, /u/, /c/
-  const slug = input.match(/lu\.ma\/(?:[a-z]\/)?([a-zA-Z0-9][a-zA-Z0-9-]+)/)?.[1]
-  if (!slug || /^evt-/.test(slug)) return 'Luma Event'
-  return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-}
-
-export async function fetchLumaEventTitle(url: string): Promise<string> {
-  try {
-    const res = await fetch(`/api/luma-event?url=${encodeURIComponent(url)}`)
-    const json = await res.json() as { title?: string }
-    return json.title?.trim() || parseLumaSlug(url)
-  } catch {
-    return parseLumaSlug(url)
-  }
-}
-
 export function parseAttestation(input: string): EventAttestation | null {
   try {
     const data = JSON.parse(input)
@@ -89,19 +64,6 @@ export function parseAttestation(input: string): EventAttestation | null {
 export function parseIcs(text: string): string | null {
   const summary = text.match(/^SUMMARY[^:]*:(.+)$/m)?.[1]?.trim()
   return summary ?? null
-}
-
-// Parses a full iCal calendar feed and returns all event names
-export function parseIcsFeed(text: string): string[] {
-  const blocks = text.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) ?? []
-  const names: string[] = []
-  for (const block of blocks) {
-    // Unfold line continuations (RFC 5545: lines starting with space/tab continue previous)
-    const unfolded = block.replace(/\r?\n[ \t]/g, '')
-    const summary = unfolded.match(/^SUMMARY[^:]*:(.+)$/m)?.[1]?.trim()
-    if (summary) names.push(summary)
-  }
-  return [...new Set(names)]
 }
 
 export async function parsePkpass(file: File): Promise<string | null> {
