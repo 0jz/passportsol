@@ -64,6 +64,14 @@ function phantomBrowseUrlWithPending(pending: PendingOp) {
   return `https://phantom.app/ul/browse/${url}?ref=${ref}`
 }
 
+function systemBrowserUrl() {
+  const clean = `${window.location.origin}${window.location.pathname}`
+  const isAndroid = /Android/i.test(navigator.userAgent)
+  if (!isAndroid) return clean
+  const noScheme = clean.replace(/^https?:\/\//, '')
+  return `intent://${noScheme}#Intent;scheme=https;package=com.android.chrome;end`
+}
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 type Page = 'mint' | 'verify'
@@ -103,6 +111,7 @@ export default function App() {
   const [addingStamps, setAddingStamps] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [passportDeleted, setPassportDeleted] = useState(false)
+  const [showReturnToBrowser, setShowReturnToBrowser] = useState(false)
 
   const connectInsidePhantom = useCallback(async () => {
     const injected = (window as unknown as {
@@ -250,6 +259,9 @@ export default function App() {
         localStorage.removeItem('pdl_passport')
       }
       setReadyToSign(null)
+      if (isInsidePhantom()) {
+        setShowReturnToBrowser(true)
+      }
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -711,13 +723,24 @@ export default function App() {
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={handleDelete}
-                  disabled={!!loading}
-                  className="w-full text-zinc-600 hover:text-red-400 text-xs py-1 transition-colors disabled:opacity-40"
-                >
-                  {loading ?? 'Delete Passport'}
-                </button>
+                <div className="space-y-2">
+                  {showReturnToBrowser && isInsidePhantom() && (
+                    <a
+                      href={systemBrowserUrl()}
+                      className="block w-full text-center text-xs font-medium px-3 py-2 rounded-lg"
+                      style={{ background: '#27272a', color: '#e4e4e7', textDecoration: 'none' }}
+                    >
+                      Return to browser
+                    </a>
+                  )}
+                  <button
+                    onClick={handleDelete}
+                    disabled={!!loading}
+                    className="w-full text-zinc-600 hover:text-red-400 text-xs py-1 transition-colors disabled:opacity-40"
+                  >
+                    {loading ?? 'Delete Passport'}
+                  </button>
+                </div>
               )}
             </div>
           )}
