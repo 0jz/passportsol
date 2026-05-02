@@ -3,7 +3,7 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { requestDeviceCode, pollForToken, fetchGithubUser } from '../lib/githubOAuth'
 import { lookupEns } from '../lib/ens'
 import { analyzeSolanaWallet } from '../lib/solanaStats'
-import { isLumaUrl, fetchLumaEventTitle, parseAttestation, verifyAttestation, parseIcs, parseIcsFeed, parsePkpass } from '../lib/attestation'
+import { parseAttestation, verifyAttestation, parseIcs, parsePkpass } from '../lib/attestation'
 import { lookupSolDomain } from '../lib/sns'
 import QrScanner from './QrScanner'
 import { lookupSolanaId } from '../lib/solanaid'
@@ -35,11 +35,8 @@ export default function StampsStep({ passport, onDone }: Props) {
   const [eventInput, setEventInput] = useState('')
   const [eventStatus, setEventStatus] = useState<'idle' | 'verifying' | 'error'>('idle')
   const [eventError, setEventError] = useState<string | null>(null)
-  const [lumaLoading, setLumaLoading] = useState(false)
-  const [lumaInput, setLumaInput] = useState('')
   const [scanning, setScanning] = useState(false)
   const [lastQrRaw, setLastQrRaw] = useState<string | null>(null)
-  const [qrFetching, setQrFetching] = useState(false)
 
   // Only add if not already in passport
   const addStamp = useCallback((stamp: string) => {
@@ -125,14 +122,6 @@ export default function StampsStep({ passport, onDone }: Props) {
     setScanning(false)
     setEventError(null)
     setLastQrRaw(data)
-
-    if (isLumaUrl(data)) {
-      setQrFetching(true)
-      const title = await fetchLumaEventTitle(data)
-      setQrFetching(false)
-      addEventStamp(title)
-      return
-    }
     const attest = parseAttestation(data)
     if (attest) {
       const result = await verifyAttestation(attest, wallet.publicKey?.toBase58() ?? '')
@@ -141,37 +130,8 @@ export default function StampsStep({ passport, onDone }: Props) {
       addStamp(`Event: ${attest.event}${issuerSuffix}`)
       return
     }
-    setEventError('QR nije prepoznat kao Luma event')
+    setEventError('QR nije prepoznat kao event atestacija')
   }, [addEventStamp, addStamp, wallet.publicKey])
-
-  const handleLumaImport = useCallback(async () => {
-    const input = lumaInput.trim()
-    if (!input) return
-    setEventError(null)
-    setLumaLoading(true)
-    try {
-      const proxyUrl = `/api/luma-calendar?url=${encodeURIComponent(input)}`
-      const res = await fetch(proxyUrl)
-      if (!res.ok) throw new Error('Ne mogu da učitam kalendar — proveri da li je URL ispravan')
-      const text = await res.text()
-      const names = parseIcsFeed(text)
-      if (names.length === 0) throw new Error('Nije pronađen nijedan event u kalendaru')
-      let added = 0
-      for (const name of names) {
-        const stamp = `Event?: ${name}`
-        if (!passport.stamps.includes(stamp) && !verified.includes(stamp)) {
-          addStamp(stamp)
-          added++
-        }
-      }
-      setLumaInput('')
-      if (added === 0) setEventError('Svi eventi su već dodati')
-    } catch (e) {
-      setEventError((e as Error).message)
-    } finally {
-      setLumaLoading(false)
-    }
-  }, [lumaInput, passport.stamps, verified, addStamp])
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -203,15 +163,9 @@ export default function StampsStep({ passport, onDone }: Props) {
     setEventError(null)
     setEventStatus('idle')
 
-    if (isLumaUrl(input)) {
-      const title = await fetchLumaEventTitle(input)
-      addEventStamp(title)
-      return
-    }
-
     const attest = parseAttestation(input)
     if (!attest) {
-      setEventError('Unesi Luma URL (lu.ma/...) ili atestaciju u JSON formatu')
+      setEventError('Unesi event atestaciju u JSON formatu')
       return
     }
 
@@ -298,38 +252,15 @@ export default function StampsStep({ passport, onDone }: Props) {
             className="w-full flex items-center justify-center gap-2 text-xs px-3 py-2 rounded-lg font-medium transition-colors"
             style={{ background: '#3f3f46', color: '#d4d4d8' }}
           >
-            <span>📷</span> Skeniraj QR kod sa tiketa
+            <span>📷</span> Skeniraj QR event atestacije
           </button>
         )}
-        {qrFetching && (
-          <p className="text-xs text-zinc-400 animate-pulse">Učitavam naziv eventa...</p>
-        )}
-        {lastQrRaw && !qrFetching && (
+        {lastQrRaw && (
           <div className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 space-y-1">
             <p className="text-xs text-zinc-500">Skenirani sadržaj:</p>
             <p className="text-xs text-zinc-300 font-mono break-all">{lastQrRaw}</p>
           </div>
         )}
-
-        {/* Luma calendar import */}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={lumaInput}
-            onChange={e => setLumaInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleLumaImport()}
-            placeholder="Luma iCal URL (iz Luma → Settings → Calendar)"
-            className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
-          />
-          <button
-            onClick={handleLumaImport}
-            disabled={!lumaInput.trim() || lumaLoading}
-            className="text-xs px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors font-medium whitespace-nowrap"
-            style={{ background: '#FF6B35', color: '#fff' }}
-          >
-            {lumaLoading ? '...' : 'Import all'}
-          </button>
-        </div>
 
         <div className="flex gap-2">
           <input
@@ -337,7 +268,7 @@ export default function StampsStep({ passport, onDone }: Props) {
             value={eventInput}
             onChange={e => setEventInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleEventSubmit()}
-            placeholder="lu.ma/event-name ili atestacija JSON"
+            placeholder="Event atestacija JSON"
             className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
           />
           <button
@@ -364,7 +295,7 @@ export default function StampsStep({ passport, onDone }: Props) {
         </div>
         {eventError && <p className="text-xs text-red-400">{eventError}</p>}
         <p className="text-xs text-zinc-600">
-          Luma link ili fajl → self-reported (+3). Atestacija od organizatora → verifikovano (+8).
+          Fajl (.ics/.pkpass) je self-reported (+3). Atestacija od organizatora je verifikovana (+8).
         </p>
       </div>
 
