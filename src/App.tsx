@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
-import { PublicKey } from '@solana/web3.js'
+import { PublicKey, Transaction } from '@solana/web3.js'
 import bs58 from 'bs58'
 import { type PassportData } from './lib/gitcoin'
 import {
@@ -9,7 +9,7 @@ import {
   buildMemoTransaction, ensureDevnetSol, waitForSignature,
 } from './lib/solana'
 import {
-  phantomSignAndSend, handleDeeplinkReturn,
+  handleDeeplinkReturn,
   getSession, clearSession, type PendingOp,
 } from './lib/phantom-deeplink'
 import EthStep from './components/EthStep'
@@ -52,6 +52,14 @@ function isInsidePhantom() {
 
 function phantomBrowseUrl() {
   const url = encodeURIComponent(window.location.href)
+  const ref = encodeURIComponent(window.location.origin)
+  return `https://phantom.app/ul/browse/${url}?ref=${ref}`
+}
+
+function phantomBrowseUrlWithPending(pending: PendingOp) {
+  const encodedPending = btoa(JSON.stringify(pending))
+  const innerUrl = `${window.location.origin}${window.location.pathname}?pdl_pending=${encodeURIComponent(encodedPending)}`
+  const url = encodeURIComponent(innerUrl)
   const ref = encodeURIComponent(window.location.origin)
   return `https://phantom.app/ul/browse/${url}?ref=${ref}`
 }
@@ -131,6 +139,23 @@ export default function App() {
       }).phantom?.solana
       injected?.connect().then(r => setDeepLinkPub(r.publicKey.toString())).catch(() => {})
     }
+
+    // If user opened this page via Phantom browse deeplink with a prepared tx,
+    // hydrate it so we can sign immediately from inside Phantom's browser.
+    if (isInsidePhantom()) {
+      const params = new URLSearchParams(window.location.search)
+      const rawPending = params.get('pdl_pending')
+      if (rawPending) {
+        try {
+          const decoded = atob(rawPending)
+          const pending = JSON.parse(decoded) as PendingOp
+          if (pending?.txB58) setReadyToSign(pending)
+        } catch {
+          // ignore malformed payload
+        }
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Helper: build tx and store as readyToSign — actual navigation happens in
@@ -167,10 +192,48 @@ export default function App() {
 
   // Called directly from a button click — no async work so the navigation fires
   // within the user gesture and Android App Links / Phantom browser intercept it.
-  const executeDeepLinkSign = useCallback(() => {
+  const executeDeepLinkSign = useCallback(async () => {
     if (!readyToSign) return
-    phantomSignAndSend(readyToSign)
-  }, [readyToSign])
+    if (!isInsidePhantom()) {
+      window.location.href = phantomBrowseUrlWithPending(readyToSign)
+      return
+    }
+    const injected = (window as unknown as {
+      phantom?: { solana?: { signAndSendTransaction(tx: unknown, opts?: object): Promise<{ signature: string }> } }
+    }).phantom?.solana
+    if (!injected?.signAndSendTransaction) throw new Error('Phantom not available')
+
+    setError(null)
+    setLoading('Potvrđujem transakciju...')
+    try {
+      const transaction = Transaction.from(bs58.decode(readyToSign.txB58))
+      const { signature } = await injected.signAndSendTransaction(transaction, {
+        skipPreflight: true,
+        minContextSlot: readyToSign.minContextSlot,
+      })
+      await waitForSignature(connection, signature)
+      const pub = deepLinkPub ?? getSession()?.walletPub ?? null
+      const savedPassport = (() => {
+        try { return JSON.parse(localStorage.getItem('pdl_passport') ?? 'null') as PassportData | null }
+        catch { return null }
+      })()
+
+      if (readyToSign.op === 'delete') {
+        if (pub) clearStored(pub)
+        setPassport(null); setTxHash(null); setStampsReady(false); setCustomStamps([])
+        setAddingStamps(false); setPassportDeleted(true)
+      } else if (savedPassport && pub) {
+        setPassport(savedPassport); setTxHash(signature); setStampsReady(true)
+        saveStored(pub, { passport: savedPassport, txHash: signature })
+        localStorage.removeItem('pdl_passport')
+      }
+      setReadyToSign(null)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setLoading(null)
+    }
+  }, [readyToSign, connection, deepLinkPub])
 
   // Sign and confirm a transaction using Phantom's injected provider.
   // Used only when inside Phantom's browser — no page navigation, no relay page.
