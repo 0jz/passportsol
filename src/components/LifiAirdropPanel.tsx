@@ -3,7 +3,7 @@ import { calculatePassportScore } from '../lib/scoring'
 import { evaluateAirdropEligibility } from '../lib/airdropEligibility'
 import { buildJumperFundingUrl } from '../lib/lifi'
 
-const MIN_SOL_RECOMMENDED = 0.002
+const MIN_SOL_RECOMMENDED = 0.000005
 
 interface Props {
   solAddress: string
