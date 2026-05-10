@@ -1,127 +1,119 @@
-# PassportSOL Handoff
+﻿# PassportSOL Handoff
 
-Date: 2026-05-10  
-Project: PassportSOL (`passportsol-vite`)  
+Datum: 2026-05-10  
+Projekat: PassportSOL (`passportsol-vite`)  
 Repo: `https://github.com/0jz/passportsol`
 
-## 1) Project Overview
+## 1) Pregled projekta
 
-PassportSOL is a Solana reputation passport app:
-- User links ETH identity (optional) and fetches Gitcoin Passport score.
-- User adds stamps (GitHub, ENS/SNS/SolanaID, event stamps, Solana wallet activity).
-- App mints/updates passport data on Solana (memo-based record).
-- Verify page reads passport from chain by Solana address.
-- Added LI.FI-oriented flow for funding + claim readiness.
-- Added SPL token airdrop claim backend (devnet).
+PassportSOL je aplikacija za reputacioni pasoš na Solani:
+- Korisnik povezuje ETH identitet (opciono) i učitava Gitcoin Passport score.
+- Korisnik dodaje stampove (GitHub, ENS/SNS/SolanaID, event stampovi, aktivnost Solana novčanika).
+- Aplikacija mintuje/azurira passport podatke na Solani (memo-based zapis).
+- Verify strana čita passport sa chain-a po Solana adresi.
+- Dodat je LI.FI tok za funding + claim readiness.
+- Dodat je SPL token airdrop claim backend (devnet).
 
-## 2) What We Implemented
+## 2) Šta je implementirano
 
-### A) Core flow reviewed and stabilized
-- Full codebase walkthrough and architecture mapping.
-- Mobile Phantom flow fixes and fallback behavior updates.
+### A) Pregled i stabilizacija osnovnog toka
+- Prođen ceo kod i mapirana arhitektura.
+- Urađeni popravci mobilnog Phantom toka i fallback ponašanja.
 
-### B) Luma removal
-- Removed Luma QR/iCal/manual Luma entrypoints from stamp flow.
-- Removed unused Luma routes/helpers.
+### B) Uklonjen Luma deo
+- Uklonjeni Luma QR/iCal/manual Luma entrypoint-i iz stamp toka.
+- Uklonjeni neiskorišćeni Luma API helper-i/rute.
 
 ### C) RPC hardening
-- Added fallback/retry handling in Solana utility layer.
-- Configurable primary/fallback RPC endpoints.
+- Dodat fallback/retry handling u Solana utility sloju.
+- Konfigurisiv primarni/fallback RPC endpoint.
 
-### D) Mobile temporary fallback
-- Added mobile “coming soon” gate (Android/iOS) to avoid unstable mobile tx UX in production.
+### D) Privremeni mobile fallback
+- Dodat “coming soon” ekran za mobile (Android/iOS) dok se ne stabilizuje mobile tx UX.
 
-### E) Airdrop eligibility logic
-- Added eligibility rules:
+### E) Pravila za eligibility
+- Dodata pravila:
   - `score > 5`
   - `walletAgeDays >= 1`
-- Added wallet age computation from on-chain history.
-- Added eligibility display to passport UI.
+- Dodat obračun starosti novčanika iz on-chain istorije.
+- Eligibility prikazan u Passport UI.
 
-### F) LI.FI sidetrack-oriented UX
-- Added LI.FI funding rail panel in post-passport flow.
-- Added funding CTA via Jumper URL generator.
-- Added readiness UX (eligibility + balance + claim path).
+### F) LI.FI sidetrack UX
+- Dodat LI.FI funding panel u post-passport toku.
+- Dodat funding CTA preko Jumper URL generatora.
+- Dodat readiness UX (eligibility + balance + claim putanja).
 
 ### G) SPL claim backend
-- Added `/api/airdrop-claim` route.
-- Route does:
-  - validation checks (score, wallet age),
-  - transfer SPL token from treasury ATA to recipient ATA,
-  - returns claim tx hash.
-- Switched runtime handling to reduce function crash risk.
-- Fixed NodeNext import extension issue in API route.
+- Dodata ruta `/api/airdrop-claim`.
+- Ruta radi:
+  - proveru uslova (score, starost novčanika),
+  - anti-dupli-claim (u trenutnoj instanci),
+  - SPL transfer sa treasury ATA na korisnika,
+  - vraća claim tx hash.
+- Runtime prilagođen da se smanji rizik od function crash-a.
+- Ispravljen NodeNext import ekstenzije u API ruti.
 
-### H) SOL address visibility
-- Passport UI now shows SOL address in main identity block.
+### H) SOL adresa u pasošu
+- Passport UI sada prikazuje i SOL adresu u glavnom identity bloku.
 
-## 3) Current Config Values (Known)
+## 3) Trenutne konfiguracione vrednosti
 
-From the session, these values were set/provided:
+Vrednosti korišćene tokom sesije:
 - `AIRDROP_TOKEN_MINT=AZG134Bqyy6giqMznoxz5iNhScuQFae6oLcwo2LWqLKX`
 - `TREASURY_WALLET_ADDRESS=7f7Gqo2rCMXSRdeqR7spLkx8vS9U6YLH1KH6xTVBrmEL`
 - `AIRDROP_AMOUNT=10`
 - `SOLANA_RPC_URL=https://solana-devnet.core.chainstack.com/e45c6bc188be806dd2c56981a1626fff`
 - `SOLANA_WS_URL=wss://solana-devnet.core.chainstack.com/e45c6bc188be806dd2c56981a1626fff`
 
-Important:
-- `CLAIM_TREASURY_SECRET` was shared during session and is compromised.
-- Must rotate treasury key immediately for safe use.
+## 4) Napomene o bezbednosti
 
-## 4) Security Notes
+### Kritično
+- `CLAIM_TREASURY_SECRET` treba čuvati isključivo kao server-side secret.
+- Nikada ne ide u `VITE_*` env niti u repo fajlove.
 
-### Critical
-- Treasury private key was exposed in chat context.
-- Actions required:
-  1. Generate new treasury keypair.
-  2. Move remaining funds/tokens to new treasury.
-  3. Replace `CLAIM_TREASURY_SECRET` in all environments.
-  4. Never store private keys in `VITE_*` vars or repo files.
+### CSP napomena
+- CSP `unsafe-eval` warning je najverovatnije iz extension/runtime konteksta.
+- Ne dodavati `unsafe-eval` osim ako je apsolutno neophodno.
 
-### CSP warning note
-- CSP `unsafe-eval` warning likely from extension/runtime context.
-- Do not add `unsafe-eval` unless absolutely necessary.
+## 5) Poznata ograničenja
 
-## 5) Known Limitations
+1. Zaštita od duplog claim-a je trenutno in-memory (`Set`) u API funkciji.
+   - Nije trajna kroz cold start/redeploy.
+2. Token se može prikazivati kao “Unknown token” bez metadata/registry mapiranja.
+3. Mobile flow je namerno zaključan kao “coming soon”.
+4. LI.FI integracija je trenutno funding CTA (Jumper URL), ne full SDK route execution.
 
-1. Duplicate claim protection is currently in-memory (`Set`) in API function.
-   - Not persistent across cold starts/redeploys.
-2. Token appears as “Unknown token” in wallets without metadata/registry entries.
-3. Mobile flow intentionally gated as “coming soon”.
-4. LI.FI integration is funding CTA-driven (Jumper URL), not full SDK route execution yet.
+## 6) TODO (prioriteti)
 
-## 6) TODO (Priority Order)
+## P0 - Bezbednost i pouzdanost
+- [ ] Prebaciti anti-dupli-claim sa in-memory na perzistentni store (Redis/DB).
+- [ ] Dodati detaljniji server logging za claim rutu (structured errors + correlation ID).
 
-## P0 - Safety and Reliability
-- [ ] Rotate treasury keys and env secrets.
-- [ ] Replace in-memory duplicate claim protection with persistent store (Redis/DB).
-- [ ] Add robust server logging for claim route (structured errors + correlation ID).
+## P1 - MVP kompletiranje
+- [ ] Uvesti server source-of-truth campaign config (score/age/amount/mint/time window).
+- [ ] Dodati campaign window proveru (`start/end`) u claim API.
+- [ ] Dodati claim history endpoint za UI/admin pregled.
+- [ ] Doraditi claim statuse u UI (`idle/claiming/claimed/error`) sa jasnim retry porukama.
 
-## P1 - Product Completeness (MVP)
-- [ ] Add campaign config as server source of truth (score/age/amount/mint/campaign window).
-- [ ] Add explicit campaign window checks (`start/end`) in claim API.
-- [ ] Add claim history endpoint for UI/admin visibility.
-- [ ] Add clearer claim statuses in UI (`idle/claiming/claimed/error`) with retry hints.
-
-## P2 - LI.FI Track Depth
-- [ ] Integrate LI.FI Widget/SDK route quote in-app (not link-only).
-- [ ] Show route details (expected output, fees, ETA).
-- [ ] Mark funding step complete after balance refresh.
-- [ ] Add event tracking funnel:
+## P2 - LI.FI track dubina
+- [ ] Integrisati LI.FI Widget/SDK quote direktno u app (ne samo link).
+- [ ] Prikaz route detalja (expected output, fee, ETA).
+- [ ] Jasno obeležiti funding step kao completed posle balance refresh-a.
+- [ ] Dodati funnel događaje:
   - open_funding
   - funding_completed
   - claim_attempted
   - claim_succeeded
 
 ## P3 - Token UX
-- [ ] Add token metadata (name/symbol/logo) so wallet no longer shows unknown token.
-- [ ] Add in-app token balance display post-claim.
+- [ ] Dodati token metadata (name/symbol/logo) da wallet ne prikazuje unknown token.
+- [ ] Dodati in-app prikaz token balansa posle claim-a.
 
 ## P4 - Mobile
-- [ ] Re-enable mobile after reliable wallet transaction return flow is validated.
-- [ ] Keep explicit fallback for wallet/browser mismatch edge cases.
+- [ ] Ponovo uključiti mobile kada wallet tx return flow postane stabilan.
+- [ ] Zadržati jasan fallback za wallet/browser mismatch edge case.
 
-## 7) Suggested Environment Variables
+## 7) Predlog env promenljivih
 
 ### Frontend
 - `VITE_SOLANA_RPC_URL`
@@ -131,7 +123,7 @@ Important:
 - `VITE_MIN_WALLET_AGE_DAYS`
 - `VITE_MIN_SOL_FOR_CLAIM`
 
-### Backend only
+### Backend (server-only)
 - `SOLANA_RPC_URL`
 - `SOLANA_WS_URL`
 - `AIRDROP_TOKEN_MINT`
@@ -141,37 +133,36 @@ Important:
 - `MIN_WALLET_AGE_DAYS`
 - `CAMPAIGN_ID`
 
-## 8) Deploy/Debug Checklist
+## 8) Deploy/Debug checklist
 
-1. Confirm all backend env vars are set in Vercel Production and Preview.
-2. Trigger redeploy after env changes.
-3. Test claim with an eligible wallet.
-4. Validate:
-   - claim tx hash returned
-   - recipient token balance increases
-   - duplicate claim blocked persistently.
+1. Proveriti da su svi backend env-ovi setovani na Vercel (Production i Preview).
+2. Trigger redeploy nakon env izmena.
+3. Testirati claim sa eligible wallet-om.
+4. Validirati:
+   - vraćen claim tx hash,
+   - rast token balansa kod primaoca,
+   - trajnu blokadu duplog claim-a.
 
-## 9) Commands Reference
+## 9) Komande
 
-### Check Solana CLI config
+### Provera Solana CLI konfiguracije
 ```bash
 solana config get
 ```
 
-### Create SPL token (devnet)
+### Kreiranje SPL tokena (devnet)
 ```bash
 spl-token create-token
 spl-token create-account <TOKEN_MINT>
 spl-token mint <TOKEN_MINT> 1000000
 ```
 
-### Wallet address from keypair
+### Wallet adresa iz keypair fajla
 ```bash
 solana-keygen pubkey <KEYPAIR_FILE>
 ```
 
-## 10) Current Branch/History Notes
+## 10) Branch/history napomena
 
-Recent major work was merged into `main` and pushed.  
-If continuing implementation, create a new feature branch from latest `main` and keep this file updated as single source of handoff truth.
-
+Većina ključnih izmena je mergeovana i pushovana na `main`.  
+Za sledeće izmene preporuka je novi feature branch sa ovog stanja i ažuriranje ovog fajla kao glavnog handoff izvora.
