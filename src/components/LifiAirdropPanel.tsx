@@ -98,7 +98,7 @@ export default function LifiAirdropPanel({
 
   const handleRefreshClick = useCallback(() => onBalanceRefresh(), [onBalanceRefresh])
 
-  const badgestyle: React.CSSProperties = {
+  const badgestyle = {
     background: 'rgba(153,69,255,0.15)',
     color: '#9945FF',
     border: '1px solid rgba(153,69,255,0.3)',
@@ -114,4 +114,5 @@ export default function LifiAirdropPanel({
           <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={badgestyle}>
             powered by LI.FI
           </span>
-        
+        </div>
+        <p cla
