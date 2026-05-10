@@ -1,5 +1,4 @@
-export const AIRDROP_MIN_SCORE = 5
-export const AIRDROP_MIN_WALLET_AGE_DAYS = 1
+import type { EligibilityThresholds } from '../config/campaign'
 
 export interface AirdropEligibilityInput {
   score: number
@@ -13,15 +12,16 @@ export interface AirdropEligibilityResult {
 
 export function evaluateAirdropEligibility(
   input: AirdropEligibilityInput,
+  thresholds: EligibilityThresholds = { humanMinScore: 5, minWalletAgeDays: 1, minSolForClaim: 0.000005 },
 ): AirdropEligibilityResult {
   const reasons: string[] = []
 
-  if (!(input.score > AIRDROP_MIN_SCORE)) {
-    reasons.push(`Score must be > ${AIRDROP_MIN_SCORE}`)
+  if (!(input.score > thresholds.humanMinScore)) {
+    reasons.push(`Score must be > ${thresholds.humanMinScore}`)
   }
 
-  if (input.walletAgeDays < AIRDROP_MIN_WALLET_AGE_DAYS) {
-    reasons.push(`Wallet age must be >= ${AIRDROP_MIN_WALLET_AGE_DAYS} day`)
+  if (input.walletAgeDays < thresholds.minWalletAgeDays) {
+    reasons.push(`Wallet age must be >= ${thresholds.minWalletAgeDays} day`)
   }
 
   return {

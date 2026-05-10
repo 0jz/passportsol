@@ -117,6 +117,9 @@ export default function App() {
   const [showReturnToBrowser, setShowReturnToBrowser] = useState(false)
   const [walletAgeDays, setWalletAgeDays] = useState(0)
   const [solBalance, setSolBalance] = useState<number | null>(null)
+  const [claimState, setClaimState] = useState<'idle' | 'claiming' | 'claimed' | 'error'>('idle')
+  const [claimTxHash, setClaimTxHash] = useState<string | null>(null)
+  const [claimError, setClaimError] = useState<string | null>(null)
 
   const connectInsidePhantom = useCallback(async () => {
     const injected = (window as unknown as {
@@ -462,6 +465,34 @@ export default function App() {
     }
   }, [effectivePubkey, wallet, connection, useDeepLink, deepLinkPub, triggerDeepLinkSign, signViaInjectedProvider])
 
+  const handleClaimAirdrop = useCallback(async () => {
+    if (!effectivePubkey || !passport) return
+    setClaimState('claiming')
+    setClaimError(null)
+    setClaimTxHash(null)
+    try {
+      const res = await fetch('/api/airdrop-claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          solAddress: effectivePubkey,
+          score: passport.score,
+          stamps: passport.stamps,
+          walletAgeDays,
+        }),
+      })
+      const data = await res.json() as { txHash?: string; error?: string }
+      if (!res.ok || !data.txHash) {
+        throw new Error(data.error ?? `Claim failed (${res.status})`)
+      }
+      setClaimTxHash(data.txHash)
+      setClaimState('claimed')
+    } catch (e) {
+      setClaimError((e as Error).message)
+      setClaimState('error')
+    }
+  }, [effectivePubkey, passport, walletAgeDays])
+
   if (mobileBrowser) {
     return (
       <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center px-6">
@@ -701,6 +732,10 @@ export default function App() {
                   stamps={passport.stamps}
                   walletAgeDays={walletAgeDays}
                   solBalance={solBalance}
+                  claimState={claimState}
+                  claimTxHash={claimTxHash}
+                  claimError={claimError}
+                  onClaim={handleClaimAirdrop}
                 />
               )}
 

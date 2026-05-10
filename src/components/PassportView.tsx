@@ -1,5 +1,6 @@
 ﻿import { calculatePassportScore, bonusFromStamps } from '../lib/scoring'
 import { evaluateAirdropEligibility } from '../lib/airdropEligibility'
+import { CAMPAIGN_PUBLIC_CONFIG } from '../config/campaign'
 
 const SEAL_COLORS = ['#9945FF', '#14F195', '#00C2FF', '#FB8C00', '#E91E63', '#00BCD4']
 
@@ -84,7 +85,7 @@ export default function PassportView({
   const isVerified = passportScore >= threshold
   const { identity, events } = parseStamps(stamps)
   const shortTx = (s: string) => `${s.slice(0, 6)}...${s.slice(-4)}`
-  const eligibility = evaluateAirdropEligibility({ score: passportScore, walletAgeDays })
+  const eligibility = evaluateAirdropEligibility({ score: passportScore, walletAgeDays }, CAMPAIGN_PUBLIC_CONFIG)
 
   return (
     <div className="rounded-xl border border-zinc-700 bg-zinc-900 overflow-hidden" style={{ fontFamily: 'monospace' }}>
@@ -174,4 +175,5 @@ export default function PassportView({
     </div>
   )
 }
+
 
