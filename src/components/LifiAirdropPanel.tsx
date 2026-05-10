@@ -1,7 +1,11 @@
 import { useMemo, useState, useEffect, useCallback, lazy, Suspense } from 'react'
+import { ChainType } from '@lifi/sdk'
 import { calculatePassportScore } from '../lib/scoring'
 import { evaluateAirdropEligibility } from '../lib/airdropEligibility'
 import { CAMPAIGN_PUBLIC_CONFIG } from '../config/campaign'
+
+// Solana chain ID in the LI.FI system
+const LIFI_SOLANA_CHAIN_ID = 1151111081099710
 
 // Lazy-load the widget so it doesn't block initial bundle
 const LiFiWidget = lazy(() =>
@@ -79,11 +83,14 @@ export default function LifiAirdropPanel({
         },
         shape: { borderRadius: 12, borderRadiusSecondary: 8 },
       },
-      // Pre-set Solana as destination chain + token
-      toChain: 'SOL',
+      // Pre-set Solana as destination chain (numeric ID required by WidgetConfig)
+      toChain: LIFI_SOLANA_CHAIN_ID,
       toToken: 'SOL',
-      // Pre-fill destination address so the user doesn't need to paste it
-      toAddress: solAddress,
+      // Pre-fill destination address with correct chain type (SVM = Solana)
+      toAddress: {
+        address: solAddress,
+        chainType: ChainType.SVM,
+      },
       variant: 'compact' as const,
     }),
     [solAddress],
@@ -101,127 +108,4 @@ export default function LifiAirdropPanel({
           <span
             className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
             style={{
-              background: 'rgba(153,69,255,0.15)',
-              color: '#9945FF',
-              border: '1px solid rgba(153,69,255,0.3)',
-            }}
-          >
-            powered by LI.FI
-          </span>
-        </div>
-        <p className="text-xs text-zinc-500 mt-0.5">
-          Bridge from any chain → fund your Solana wallet → claim the airdrop.
-        </p>
-      </div>
-
-      {/* ── Status panel ── */}
-      <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 space-y-1.5 text-xs">
-        <div className="flex items-center justify-between">
-          <span className="text-zinc-500">Eligibility</span>
-          <span className={eligibility.eligible ? 'text-emerald-400 font-medium' : 'text-amber-400'}>
-            {eligibility.eligible ? '✓ Eligible' : eligibility.reasons.join(' · ')}
-          </span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-zinc-500">Passport score</span>
-          <span className="text-zinc-300">{passportScore.toFixed(1)}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-zinc-500">Wallet age</span>
-          <span className="text-zinc-300">{walletAgeDays.toFixed(1)} day(s)</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-zinc-500">SOL balance</span>
-          <div className="flex items-center gap-1.5">
-            <span className={hasEnoughSol ? 'text-emerald-400' : 'text-amber-400'}>
-              {solBalance === null ? '...' : `${solBalance.toFixed(5)} SOL`}
-            </span>
-            <button
-              onClick={handleRefreshClick}
-              className="text-zinc-600 hover:text-zinc-400 transition-colors leading-none"
-              title="Refresh balance"
-            >
-              ↻
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── LI.FI Widget (shown when wallet needs funding) ── */}
-      {!hasEnoughSol && (
-        <div className="space-y-2">
-          <button
-            onClick={() => setShowWidget(v => !v)}
-            className="w-full text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors"
-            style={{
-              background: showWidget ? '#27272a' : '#9945FF',
-              color: '#fff',
-            }}
-          >
-            {showWidget ? 'Hide LI.FI Widget ↑' : '⚡ Fund via LI.FI (cross-chain) →'}
-          </button>
-
-          {showWidget && (
-            <div className="rounded-xl overflow-hidden border border-zinc-800" style={{ minHeight: 420 }}>
-              <Suspense
-                fallback={
-                  <div className="flex items-center justify-center h-40 text-zinc-500 text-sm gap-2">
-                    <span className="animate-spin">⟳</span> Loading LI.FI Widget...
-                  </div>
-                }
-              >
-                <LiFiWidget integrator="passportsol" config={widgetConfig} />
-              </Suspense>
-            </div>
-          )}
-
-          <p className="text-xs text-zinc-600 text-center">
-            Bridge ETH, USDC, MATIC and more → SOL in a few clicks
-          </p>
-        </div>
-      )}
-
-      {/* ── Funded confirmation ── */}
-      {hasEnoughSol && claimState !== 'claimed' && (
-        <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 rounded-lg px-3 py-2">
-          <span>✓</span>
-          <span>Wallet funded — ready to claim your airdrop.</span>
-        </div>
-      )}
-
-      {/* ── Claim button ── */}
-      <button
-        disabled={!canClaim}
-        onClick={onClaim}
-        className="w-full text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-40 transition-opacity"
-        style={{ background: '#14F195', color: '#081016' }}
-      >
-        {claimState === 'claiming'
-          ? 'Claiming...'
-          : claimState === 'claimed'
-            ? '✓ Airdrop Claimed'
-            : 'Claim Memecoin Airdrop'}
-      </button>
-
-      {/* ── Errors ── */}
-      {claimError && (
-        <p className="text-xs text-red-400 bg-red-950/40 border border-red-800/40 rounded-lg px-3 py-2">
-          {claimError}
-        </p>
-      )}
-
-      {/* ── Success tx link ── */}
-      {claimTxHash && (
-        <a
-          href={`https://explorer.solana.com/tx/${claimTxHash}?cluster=devnet`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block text-xs text-center font-medium hover:underline"
-          style={{ color: '#14F195' }}
-        >
-          ✓ View claim tx on Solana Explorer →
-        </a>
-      )}
-    </div>
-  )
-}
+   
