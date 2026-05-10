@@ -312,7 +312,9 @@ export default function App() {
     connection.getBalance(new PublicKey(effectivePubkey))
       .then(v => setSolBalance(v / LAMPORTS_PER_SOL))
       .catch(() => setSolBalance(null))
-    getWalletAgeDays(effectivePubkey, connection).then(setWalletAgeDays).catch(() => setWalletAgeDays(0))
+    getWalletAgeDays(effectivePubkey, connection)
+      .then(setWalletAgeDays)
+      .catch(() => setWalletAgeDays(0))
     getPassportFromChain(effectivePubkey, connection).then(data => {
       if (!data) return
       if (stored && data.txSig === stored.txHash) return
@@ -328,6 +330,14 @@ export default function App() {
       setStampsReady(true)
       saveStored(effectivePubkey, { passport, txHash: data.txSig })
     }).finally(() => setSyncing(false))
+  }, [effectivePubkey, connection])
+
+  // Refresh SOL balance on demand (called by LifiAirdropPanel polling + manual button)
+  const handleBalanceRefresh = useCallback(() => {
+    if (!effectivePubkey) return
+    connection.getBalance(new PublicKey(effectivePubkey))
+      .then(v => setSolBalance(v / LAMPORTS_PER_SOL))
+      .catch(() => {})
   }, [effectivePubkey, connection])
 
   const step: Step =
@@ -742,6 +752,7 @@ export default function App() {
                   claimTxHash={claimTxHash}
                   claimError={claimError}
                   onClaim={handleClaimAirdrop}
+                  onBalanceRefresh={handleBalanceRefresh}
                 />
               )}
 
