@@ -383,4 +383,8 @@ function StampRow({ label, description, state }: {
       )}
       {state.status === 'not_found' && (
         <span className="text-xs text-zinc-500">{state.value ?? 'Not found'}</span>
-   
+      )}
+      {state.status === 'error' && <span className="text-xs text-red-500">Error</span>}
+    </div>
+  )
+}
