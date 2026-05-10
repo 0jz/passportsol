@@ -12,6 +12,7 @@ import type { PassportData } from '../lib/gitcoin'
 interface Props {
   passport: PassportData
   onDone: (stamps: string[]) => void
+  solAddress?: string | null
 }
 
 interface StampState {
@@ -19,15 +20,18 @@ interface StampState {
   value?: string
 }
 
-export default function StampsStep({ passport, onDone }: Props) {
+export default function StampsStep({ passport, onDone, solAddress: solAddressProp }: Props) {
   const wallet = useWallet()
   const { connection } = useConnection()
 
+  // Prefer prop address (covers deeplink flow where wallet.publicKey may be null)
+  const solAddress = solAddressProp ?? wallet.publicKey?.toBase58() ?? null
+
   const [verified, setVerified] = useState<string[]>([])
   const [ens, setEns] = useState<StampState>({ status: passport.ethAddress ? 'checking' : 'idle' })
-  const [sns, setSns] = useState<StampState>({ status: wallet.publicKey ? 'checking' : 'idle' })
-  const [solanaId, setSolanaId] = useState<StampState>({ status: wallet.publicKey ? 'checking' : 'idle' })
-  const [solana, setSolana] = useState<StampState>({ status: wallet.publicKey ? 'checking' : 'idle' })
+  const [sns, setSns] = useState<StampState>({ status: solAddress ? 'checking' : 'idle' })
+  const [solanaId, setSolanaId] = useState<StampState>({ status: solAddress ? 'checking' : 'idle' })
+  const [solana, setSolana] = useState<StampState>({ status: solAddress ? 'checking' : 'idle' })
   const [githubStep, setGithubStep] = useState<'idle' | 'code' | 'polling' | 'done'>('idle')
   const [userCode, setUserCode] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -46,31 +50,31 @@ export default function StampsStep({ passport, onDone }: Props) {
 
   // Auto-detect Solana.id profile
   useEffect(() => {
-    if (!wallet.publicKey) return
+    if (!solAddress) return
     const existing = passport.stamps.find(s => /^SolanaID:/.test(s))
     if (existing) {
       setSolanaId({ status: 'already_added', value: existing.replace('SolanaID: ', '') })
       return
     }
-    lookupSolanaId(wallet.publicKey.toBase58()).then(profile => {
+    lookupSolanaId(solAddress).then(profile => {
       if (profile) { setSolanaId({ status: 'found', value: profile }); addStamp(`SolanaID: ${profile}`) }
       else setSolanaId({ status: 'not_found' })
     })
-  }, [wallet.publicKey, passport.stamps, addStamp])
+  }, [solAddress, passport.stamps, addStamp])
 
   // Auto-detect .sol domain
   useEffect(() => {
-    if (!wallet.publicKey) return
+    if (!solAddress) return
     const existing = passport.stamps.find(s => /^SNS:/.test(s))
     if (existing) {
       setSns({ status: 'already_added', value: existing.replace('SNS: ', '') })
       return
     }
-    lookupSolDomain(wallet.publicKey.toBase58()).then(domain => {
+    lookupSolDomain(solAddress).then(domain => {
       if (domain) { setSns({ status: 'found', value: domain }); addStamp(`SNS: ${domain}`) }
       else setSns({ status: 'not_found' })
     })
-  }, [wallet.publicKey, passport.stamps, addStamp])
+  }, [solAddress, passport.stamps, addStamp])
 
   // Auto-detect ENS
   useEffect(() => {
@@ -88,13 +92,13 @@ export default function StampsStep({ passport, onDone }: Props) {
 
   // Auto-detect Solana stats
   useEffect(() => {
-    if (!wallet.publicKey) return
+    if (!solAddress) return
     const existingSolana = passport.stamps.filter(s => s.startsWith('Solana'))
     if (existingSolana.length > 0) {
       setSolana({ status: 'already_added', value: existingSolana.join(', ') })
       return
     }
-    analyzeSolanaWallet(wallet.publicKey.toBase58(), connection).then(stats => {
+    analyzeSolanaWallet(solAddress, connection).then(stats => {
       if (stats.stamps.length > 0) {
         setSolana({ status: 'found', value: stats.stamps.join(', ') })
         stats.stamps.forEach(addStamp)
@@ -104,7 +108,7 @@ export default function StampsStep({ passport, onDone }: Props) {
         setSolana({ status: 'not_found', value: stats.walletAgeMonths > 0 ? ageLabel : undefined })
       }
     }).catch(() => setSolana({ status: 'error' }))
-  }, [wallet.publicKey, connection, passport.stamps, addStamp])
+  }, [solAddress, connection, passport.stamps, addStamp])
 
   const hasGithubStamp = passport.stamps.some(s => /^GitHub:/.test(s))
 
@@ -379,8 +383,4 @@ function StampRow({ label, description, state }: {
       )}
       {state.status === 'not_found' && (
         <span className="text-xs text-zinc-500">{state.value ?? 'Not found'}</span>
-      )}
-      {state.status === 'error' && <span className="text-xs text-red-500">Error</span>}
-    </div>
-  )
-}
+   

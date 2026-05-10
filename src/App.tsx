@@ -670,7 +670,7 @@ export default function App() {
             <StepCard number={3} title="Add Stamps" badge="optional" done={step >= 3} active={step === 2} locked={step < 2}>
               {step === 2 && passport && (
                 <>
-                  <StampsStep passport={passport} onDone={handleStampsDone} />
+                  <StampsStep passport={passport} onDone={handleStampsDone} solAddress={effectivePubkey} />
                   <button onClick={handleBackToEth} className="text-zinc-600 hover:text-zinc-400 text-xs py-1 transition-colors">
                     ← Back
                   </button>
@@ -774,7 +774,7 @@ export default function App() {
                     </p>
                   </div>
                   <p className="text-sm font-medium text-white">Add Stamps</p>
-                  <StampsStep passport={passport} onDone={handleMoreStampsDone} />
+                  <StampsStep passport={passport} onDone={handleMoreStampsDone} solAddress={effectivePubkey} />
                 </div>
               )}
 
