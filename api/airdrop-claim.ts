@@ -1,4 +1,4 @@
-import { calculatePassportScore } from '../src/lib/scoring'
+import { calculatePassportScore } from '../src/lib/scoring.js'
 
 type ClaimBody = {
   solAddress?: string
