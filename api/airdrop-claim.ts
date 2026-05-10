@@ -24,50 +24,54 @@ function parseSecretKey(secret: string): Uint8Array {
   return Uint8Array.from(arr)
 }
 
-export default async function handler(req: Request): Promise<Response> {
+function sendJson(res: any, status: number, payload: object) {
+  res.statusCode = status
+  res.setHeader('Content-Type', 'application/json')
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.end(JSON.stringify(payload))
+}
+
+export default async function handler(req: any, res: any) {
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
-    })
+    res.statusCode = 204
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+    res.end()
+    return
   }
-  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
+
+  if (req.method !== 'POST') {
+    sendJson(res, 405, { error: 'Method not allowed' })
+    return
+  }
 
   try {
-    const body = await req.json() as ClaimBody
+    const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {}) as ClaimBody
     const solAddress = body.solAddress?.trim()
     const score = Number(body.score ?? 0)
     const stamps = Array.isArray(body.stamps) ? body.stamps : []
     const walletAgeDays = Number(body.walletAgeDays ?? 0)
 
-    if (!solAddress) return new Response(JSON.stringify({ error: 'Missing solAddress' }), { status: 400 })
+    if (!solAddress) return sendJson(res, 400, { error: 'Missing solAddress' })
     const recipient = new PublicKey(solAddress)
     const passportScore = calculatePassportScore(score, stamps)
 
     const minScore = envNum('HUMAN_MIN_SCORE', 5)
     const minWalletAgeDays = envNum('MIN_WALLET_AGE_DAYS', 1)
-    if (!(passportScore > minScore)) {
-      return new Response(JSON.stringify({ error: `Score must be > ${minScore}` }), { status: 400 })
-    }
-    if (walletAgeDays < minWalletAgeDays) {
-      return new Response(JSON.stringify({ error: `Wallet age must be >= ${minWalletAgeDays} day` }), { status: 400 })
-    }
+    if (!(passportScore > minScore)) return sendJson(res, 400, { error: `Score must be > ${minScore}` })
+    if (walletAgeDays < minWalletAgeDays) return sendJson(res, 400, { error: `Wallet age must be >= ${minWalletAgeDays} day` })
 
     const campaignId = process.env.CAMPAIGN_ID ?? 'devnet-default'
     const claimKey = `${campaignId}:${recipient.toBase58()}`
-    if (claimed.has(claimKey)) {
-      return new Response(JSON.stringify({ error: 'This wallet already claimed for this campaign' }), { status: 409 })
-    }
+    if (claimed.has(claimKey)) return sendJson(res, 409, { error: 'This wallet already claimed for this campaign' })
 
     const rpc = process.env.SOLANA_RPC_URL
     const mintAddress = process.env.AIRDROP_TOKEN_MINT
     const treasurySecret = process.env.CLAIM_TREASURY_SECRET
     const airdropAmount = envNum('AIRDROP_AMOUNT', 10)
     if (!rpc || !mintAddress || !treasurySecret) {
-      return new Response(JSON.stringify({ error: 'Missing server env configuration' }), { status: 500 })
+      return sendJson(res, 500, { error: 'Missing server env configuration' })
     }
 
     const connection = new Connection(rpc, 'confirmed')
@@ -77,17 +81,10 @@ export default async function handler(req: Request): Promise<Response> {
     const mintInfo = await getMint(connection, mint)
     const decimals = mintInfo.decimals
     const baseUnits = BigInt(Math.floor(airdropAmount * 10 ** decimals))
-    if (baseUnits <= 0n) {
-      return new Response(JSON.stringify({ error: 'Airdrop amount resolves to zero base units' }), { status: 400 })
-    }
+    if (baseUnits <= 0n) return sendJson(res, 400, { error: 'Airdrop amount resolves to zero base units' })
 
     const sourceAta = getAssociatedTokenAddressSync(mint, treasury.publicKey)
-    const destinationAta = await getOrCreateAssociatedTokenAccount(
-      connection,
-      treasury,
-      mint,
-      recipient,
-    )
+    const destinationAta = await getOrCreateAssociatedTokenAccount(connection, treasury, mint, recipient)
 
     const txHash = await transfer(
       connection,
@@ -99,14 +96,11 @@ export default async function handler(req: Request): Promise<Response> {
     )
 
     claimed.add(claimKey)
-    return new Response(JSON.stringify({ ok: true, txHash }), {
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-    })
+    sendJson(res, 200, { ok: true, txHash })
   } catch (e) {
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-    })
+    sendJson(res, 500, { error: (e as Error).message })
   }
 }
+
+export const config = { runtime: 'nodejs' }
 
