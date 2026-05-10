@@ -481,7 +481,13 @@ export default function App() {
           walletAgeDays,
         }),
       })
-      const data = await res.json() as { txHash?: string; error?: string }
+      const raw = await res.text()
+      let data: { txHash?: string; error?: string } = {}
+      try {
+        data = JSON.parse(raw) as { txHash?: string; error?: string }
+      } catch {
+        data = { error: raw.slice(0, 300) || `Non-JSON response (${res.status})` }
+      }
       if (!res.ok || !data.txHash) {
         throw new Error(data.error ?? `Claim failed (${res.status})`)
       }
