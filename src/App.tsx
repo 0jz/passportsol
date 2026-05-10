@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
-import { PublicKey } from '@solana/web3.js'
+import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
 import { type PassportData } from './lib/gitcoin'
 import {
   mintPassportMemo, getPassportFromChain, invalidatePassport,
@@ -16,6 +16,7 @@ import EthStep from './components/EthStep'
 import StampsStep from './components/StampsStep'
 import SuccessCard from './components/SuccessCard'
 import VerifyPage from './components/VerifyPage'
+import LifiAirdropPanel from './components/LifiAirdropPanel'
 
 // ─── localStorage helpers ────────────────────────────────────────────────────
 
@@ -115,6 +116,7 @@ export default function App() {
   const [passportDeleted, setPassportDeleted] = useState(false)
   const [showReturnToBrowser, setShowReturnToBrowser] = useState(false)
   const [walletAgeDays, setWalletAgeDays] = useState(0)
+  const [solBalance, setSolBalance] = useState<number | null>(null)
 
   const connectInsidePhantom = useCallback(async () => {
     const injected = (window as unknown as {
@@ -292,6 +294,7 @@ export default function App() {
       setAddingStamps(false)
       setError(null)
       setWalletAgeDays(0)
+      setSolBalance(null)
       return
     }
 
@@ -303,6 +306,9 @@ export default function App() {
     }
 
     setSyncing(true)
+    connection.getBalance(new PublicKey(effectivePubkey))
+      .then(v => setSolBalance(v / LAMPORTS_PER_SOL))
+      .catch(() => setSolBalance(null))
     getWalletAgeDays(effectivePubkey, connection).then(setWalletAgeDays).catch(() => setWalletAgeDays(0))
     getPassportFromChain(effectivePubkey, connection).then(data => {
       if (!data) return
@@ -688,6 +694,15 @@ export default function App() {
                 walletAgeDays={walletAgeDays}
                 solAddress={effectivePubkey}
               />
+              {effectivePubkey && (
+                <LifiAirdropPanel
+                  solAddress={effectivePubkey}
+                  baseScore={passport.score}
+                  stamps={passport.stamps}
+                  walletAgeDays={walletAgeDays}
+                  solBalance={solBalance}
+                />
+              )}
 
               {!addingStamps && (
                 <button
