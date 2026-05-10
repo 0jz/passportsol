@@ -4,10 +4,10 @@ import { calculatePassportScore } from '../lib/scoring'
 import { evaluateAirdropEligibility } from '../lib/airdropEligibility'
 import { CAMPAIGN_PUBLIC_CONFIG } from '../config/campaign'
 
-// Solana chain ID in the LI.FI system
+// Solana chain ID in the LI.FI system (from @lifi/types ChainId.SOL)
 const LIFI_SOLANA_CHAIN_ID = 1151111081099710
 
-// Lazy-load the widget so it doesn't block initial bundle
+// Lazy-load the widget to keep initial bundle small
 const LiFiWidget = lazy(() =>
   import('@lifi/widget').then(m => ({ default: m.LiFiWidget }))
 )
@@ -45,7 +45,10 @@ export default function LifiAirdropPanel({
   )
 
   const eligibility = useMemo(
-    () => evaluateAirdropEligibility({ score: passportScore, walletAgeDays }, CAMPAIGN_PUBLIC_CONFIG),
+    () => evaluateAirdropEligibility(
+      { score: passportScore, walletAgeDays },
+      CAMPAIGN_PUBLIC_CONFIG,
+    ),
     [passportScore, walletAgeDays],
   )
 
@@ -58,19 +61,18 @@ export default function LifiAirdropPanel({
     claimState !== 'claiming' &&
     claimState !== 'claimed'
 
-  // Poll balance every 12 s while widget is open so the UI auto-unlocks after bridging
+  // Poll SOL balance every 12s while widget is open — auto-unlocks claim after bridge
   useEffect(() => {
     if (!showWidget || claimState === 'claimed') return
     const id = setInterval(onBalanceRefresh, 12000)
     return () => clearInterval(id)
   }, [showWidget, claimState, onBalanceRefresh])
 
-  // Auto-close widget once wallet is funded
+  // Auto-close widget once the wallet is funded
   useEffect(() => {
     if (hasEnoughSol && showWidget) setShowWidget(false)
   }, [hasEnoughSol, showWidget])
 
-  // LI.FI widget config — destination locked to user's Solana wallet
   const widgetConfig = useMemo(
     () => ({
       integrator: 'passportsol',
@@ -83,10 +85,8 @@ export default function LifiAirdropPanel({
         },
         shape: { borderRadius: 12, borderRadiusSecondary: 8 },
       },
-      // Pre-set Solana as destination chain (numeric ID required by WidgetConfig)
       toChain: LIFI_SOLANA_CHAIN_ID,
       toToken: 'SOL',
-      // Pre-fill destination address with correct chain type (SVM = Solana)
       toAddress: {
         address: solAddress,
         chainType: ChainType.SVM,
@@ -98,14 +98,20 @@ export default function LifiAirdropPanel({
 
   const handleRefreshClick = useCallback(() => onBalanceRefresh(), [onBalanceRefresh])
 
+  const badgestyle: React.CSSProperties = {
+    background: 'rgba(153,69,255,0.15)',
+    color: '#9945FF',
+    border: '1px solid rgba(153,69,255,0.3)',
+  }
+
   return (
     <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-4 space-y-3">
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div>
         <div className="flex items-center gap-2 flex-wrap">
           <p className="text-sm font-semibold text-white">LI.FI Airdrop Rail</p>
-          <span
-            className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
-            style={{
-   
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={badgestyle}>
+            powered by LI.FI
+          </span>
+        
