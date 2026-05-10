@@ -9,6 +9,23 @@ export interface SolanaStats {
   stamps: string[]
 }
 
+export async function getWalletAgeDays(
+  address: string,
+  connection: Connection,
+): Promise<number> {
+  try {
+    const pubkey = new PublicKey(address)
+    const signatures = await connection.getSignaturesForAddress(pubkey, { limit: 1000 })
+    if (signatures.length === 0) return 0
+    const oldest = signatures[signatures.length - 1]
+    if (!oldest.blockTime) return 0
+    const walletAgeMs = Date.now() - oldest.blockTime * 1000
+    return Math.max(0, walletAgeMs / (1000 * 60 * 60 * 24))
+  } catch {
+    return 0
+  }
+}
+
 export async function analyzeSolanaWallet(
   address: string,
   connection: Connection,

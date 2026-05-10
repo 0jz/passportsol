@@ -7,6 +7,7 @@ import {
   mintPassportMemo, getPassportFromChain, invalidatePassport,
   buildMemoTransaction, ensureDevnetSol, waitForSignature,
 } from './lib/solana'
+import { getWalletAgeDays } from './lib/solanaStats'
 import {
   handleDeeplinkReturn,
   getSession, clearSession,
@@ -113,6 +114,7 @@ export default function App() {
   const [syncing, setSyncing] = useState(false)
   const [passportDeleted, setPassportDeleted] = useState(false)
   const [showReturnToBrowser, setShowReturnToBrowser] = useState(false)
+  const [walletAgeDays, setWalletAgeDays] = useState(0)
 
   const connectInsidePhantom = useCallback(async () => {
     const injected = (window as unknown as {
@@ -289,6 +291,7 @@ export default function App() {
       setCustomStamps([])
       setAddingStamps(false)
       setError(null)
+      setWalletAgeDays(0)
       return
     }
 
@@ -300,6 +303,7 @@ export default function App() {
     }
 
     setSyncing(true)
+    getWalletAgeDays(effectivePubkey, connection).then(setWalletAgeDays).catch(() => setWalletAgeDays(0))
     getPassportFromChain(effectivePubkey, connection).then(data => {
       if (!data) return
       if (stored && data.txSig === stored.txHash) return
@@ -678,7 +682,7 @@ export default function App() {
 
           {txHash && passport && (
             <div className="mt-4 space-y-3">
-              <SuccessCard passport={passport} txHash={txHash} />
+              <SuccessCard passport={passport} txHash={txHash} walletAgeDays={walletAgeDays} />
 
               {!addingStamps && (
                 <button
