@@ -1,5 +1,3 @@
-import { Connection, Keypair, PublicKey } from '@solana/web3.js'
-import { getAssociatedTokenAddressSync, getMint, getOrCreateAssociatedTokenAccount, transfer } from '@solana/spl-token'
 import { calculatePassportScore } from '../src/lib/scoring'
 
 type ClaimBody = {
@@ -47,6 +45,9 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
+    const web3 = await import('@solana/web3.js')
+    const splToken = await import('@solana/spl-token')
+
     const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {}) as ClaimBody
     const solAddress = body.solAddress?.trim()
     const score = Number(body.score ?? 0)
@@ -54,7 +55,7 @@ export default async function handler(req: any, res: any) {
     const walletAgeDays = Number(body.walletAgeDays ?? 0)
 
     if (!solAddress) return sendJson(res, 400, { error: 'Missing solAddress' })
-    const recipient = new PublicKey(solAddress)
+    const recipient = new web3.PublicKey(solAddress)
     const passportScore = calculatePassportScore(score, stamps)
 
     const minScore = envNum('HUMAN_MIN_SCORE', 5)
@@ -74,19 +75,19 @@ export default async function handler(req: any, res: any) {
       return sendJson(res, 500, { error: 'Missing server env configuration' })
     }
 
-    const connection = new Connection(rpc, 'confirmed')
-    const treasury = Keypair.fromSecretKey(parseSecretKey(treasurySecret))
-    const mint = new PublicKey(mintAddress)
+    const connection = new web3.Connection(rpc, 'confirmed')
+    const treasury = web3.Keypair.fromSecretKey(parseSecretKey(treasurySecret))
+    const mint = new web3.PublicKey(mintAddress)
 
-    const mintInfo = await getMint(connection, mint)
+    const mintInfo = await splToken.getMint(connection, mint)
     const decimals = mintInfo.decimals
     const baseUnits = BigInt(Math.floor(airdropAmount * 10 ** decimals))
     if (baseUnits <= 0n) return sendJson(res, 400, { error: 'Airdrop amount resolves to zero base units' })
 
-    const sourceAta = getAssociatedTokenAddressSync(mint, treasury.publicKey)
-    const destinationAta = await getOrCreateAssociatedTokenAccount(connection, treasury, mint, recipient)
+    const sourceAta = splToken.getAssociatedTokenAddressSync(mint, treasury.publicKey)
+    const destinationAta = await splToken.getOrCreateAssociatedTokenAccount(connection, treasury, mint, recipient)
 
-    const txHash = await transfer(
+    const txHash = await splToken.transfer(
       connection,
       treasury,
       sourceAta,
@@ -103,4 +104,3 @@ export default async function handler(req: any, res: any) {
 }
 
 export const config = { runtime: 'nodejs' }
-
