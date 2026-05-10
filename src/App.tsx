@@ -682,7 +682,12 @@ export default function App() {
 
           {txHash && passport && (
             <div className="mt-4 space-y-3">
-              <SuccessCard passport={passport} txHash={txHash} walletAgeDays={walletAgeDays} />
+              <SuccessCard
+                passport={passport}
+                txHash={txHash}
+                walletAgeDays={walletAgeDays}
+                solAddress={effectivePubkey}
+              />
 
               {!addingStamps && (
                 <button

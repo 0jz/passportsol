@@ -98,6 +98,7 @@ export default function VerifyPage() {
           stamps={result.stamps}
           score={result.score}
           threshold={threshold}
+          solAddress={address.trim()}
           ethAddress={result.eth}
           mintedAt={result.ts}
         />

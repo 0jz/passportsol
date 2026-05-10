@@ -62,6 +62,7 @@ interface Props {
   stamps: string[]
   score: number
   threshold: number
+  solAddress?: string | null
   ethAddress?: string | null
   txHash?: string
   mintedAt?: number
@@ -72,6 +73,7 @@ export default function PassportView({
   stamps,
   score,
   threshold,
+  solAddress,
   ethAddress,
   txHash,
   mintedAt,
@@ -112,8 +114,14 @@ export default function PassportView({
         </div>
       </div>
 
-      {(identity.length > 0 || ethAddress) && (
+      {(identity.length > 0 || ethAddress || solAddress) && (
         <div className="px-5 py-3 border-b border-zinc-800 space-y-1.5">
+          {solAddress && (
+            <div className="flex gap-3">
+              <span className="text-xs text-zinc-600 w-20 shrink-0">SOL</span>
+              <span className="text-xs text-zinc-400 break-all">{solAddress}</span>
+            </div>
+          )}
           {ethAddress && (
             <div className="flex gap-3">
               <span className="text-xs text-zinc-600 w-20 shrink-0">ETH</span>
