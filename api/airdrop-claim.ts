@@ -5,13 +5,20 @@ import { calculatePassportScore } from '../src/lib/scoring.js'
 // via PassportSOL's LI.FI integrator tag before allowing a claim.
 async function verifyBridgedViaLifi(solAddress: string): Promise<boolean> {
   try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 5000)
     const url = `https://li.quest/v1/analytics/transfers?wallet=${solAddress}&integrator=passportsol&status=DONE`
-    const res = await fetch(url, {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(5000),
-    })
-    if (!res.ok) return true // graceful fallback — don't block if LI.FI API is unreachable
-    const data = await res.json() as { transfers?: unknown[]; data?: unknown[]; count?: number }
+    let res: Response
+    try {
+      res = await fetch(url, {
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      })
+    } finally {
+      clearTimeout(timer)
+    }
+    if (!res!.ok) return true // graceful fallback — don't block if LI.FI API is unreachable
+    const data = await res!.json() as { transfers?: unknown[]; data?: unknown[]; count?: number }
     const transfers = data.transfers ?? data.data ?? []
     if (Array.isArray(transfers)) return transfers.length > 0
     if (typeof data.count === 'number') return data.count > 0
@@ -88,8 +95,3 @@ export default async function handler(req: any, res: any) {
     const bridged = await verifyBridgedViaLifi(recipient.toBase58())
     if (!bridged) {
       return sendJson(res, 403, {
-        error: 'You must bridge funds via LI.FI before claiming. Use the "Fund via LI.FI" step in the app.',
-      })
-    }
-
-    const campaignId = process.env.CAMPAIGN_ID ?? 'devne
