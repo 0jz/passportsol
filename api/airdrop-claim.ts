@@ -1,5 +1,51 @@
 import { calculatePassportScore } from '../src/lib/scoring.js'
 
+type LifiVerificationResult = {
+  allowed: boolean
+  verified: boolean
+  reason: 'verified' | 'not_found' | 'unreachable' | 'unexpected_shape'
+}
+
+// Checks that this Solana wallet has at least one completed bridge
+// via PassportSOL's LI.FI integrator tag before allowing a claim.
+async function verifyBridgedViaLifi(solAddress: string): Promise<LifiVerificationResult> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 5000)
+
+  try {
+    const url = `https://li.quest/v1/analytics/transfers?wallet=${solAddress}&integrator=passportsol&status=DONE`
+    const res = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    })
+    clearTimeout(timer)
+
+    if (!res.ok) {
+      return { allowed: true, verified: false, reason: 'unreachable' }
+    }
+
+    const data = await res.json() as { transfers?: unknown[]; data?: unknown[]; count?: number }
+    const transfers = data.transfers ?? data.data ?? []
+
+    if (Array.isArray(transfers)) {
+      return transfers.length > 0
+        ? { allowed: true, verified: true, reason: 'verified' }
+        : { allowed: false, verified: false, reason: 'not_found' }
+    }
+
+    if (typeof data.count === 'number') {
+      return data.count > 0
+        ? { allowed: true, verified: true, reason: 'verified' }
+        : { allowed: false, verified: false, reason: 'not_found' }
+    }
+
+    return { allowed: true, verified: false, reason: 'unexpected_shape' }
+  } catch {
+    clearTimeout(timer)
+    return { allowed: true, verified: false, reason: 'unreachable' }
+  }
+}
+
 type ClaimBody = {
   solAddress?: string
   score?: number
@@ -29,14 +75,47 @@ function sendJson(res: any, status: number, payload: object) {
   res.end(JSON.stringify(payload))
 }
 
+function getQuerySolAddress(req: any): string | null {
+  const raw = req.query?.solAddress
+  if (typeof raw === 'string') return raw.trim() || null
+  if (Array.isArray(raw) && typeof raw[0] === 'string') return raw[0].trim() || null
+  return null
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method === 'OPTIONS') {
     res.statusCode = 204
     res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
     res.end()
     return
+  }
+
+  if (req.method === 'GET') {
+    try {
+      const web3 = await import('@solana/web3.js')
+      const solAddress = getQuerySolAddress(req)
+
+      if (!solAddress) {
+        sendJson(res, 400, { error: 'Missing solAddress' })
+        return
+      }
+
+      const recipient = new web3.PublicKey(solAddress)
+      const verification = await verifyBridgedViaLifi(recipient.toBase58())
+
+      sendJson(res, 200, {
+        ok: true,
+        lifiBridgeVerified: verification.verified,
+        claimAllowedByLifiGate: verification.allowed,
+        reason: verification.reason,
+      })
+      return
+    } catch (e) {
+      sendJson(res, 400, { error: (e as Error).message })
+      return
+    }
   }
 
   if (req.method !== 'POST') {
@@ -62,6 +141,13 @@ export default async function handler(req: any, res: any) {
     const minWalletAgeDays = envNum('MIN_WALLET_AGE_DAYS', 1)
     if (!(passportScore > minScore)) return sendJson(res, 400, { error: `Score must be > ${minScore}` })
     if (walletAgeDays < minWalletAgeDays) return sendJson(res, 400, { error: `Wallet age must be >= ${minWalletAgeDays} day` })
+
+    const verification = await verifyBridgedViaLifi(recipient.toBase58())
+    if (!verification.allowed) {
+      return sendJson(res, 403, {
+        error: 'You must bridge funds via LI.FI before claiming. Use the "Fund via LI.FI" step in the app.',
+      })
+    }
 
     const campaignId = process.env.CAMPAIGN_ID ?? 'devnet-default'
     const claimKey = `${campaignId}:${recipient.toBase58()}`
