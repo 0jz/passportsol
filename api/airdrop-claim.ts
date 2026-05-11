@@ -30,13 +30,13 @@ async function verifyBridgedViaLifi(solAddress: string): Promise<LifiVerificatio
     if (Array.isArray(transfers)) {
       return transfers.length > 0
         ? { allowed: true, verified: true, reason: 'verified' }
-        : { allowed: false, verified: false, reason: 'not_found' }
+        : { allowed: true, verified: false, reason: 'not_found' }
     }
 
     if (typeof data.count === 'number') {
       return data.count > 0
         ? { allowed: true, verified: true, reason: 'verified' }
-        : { allowed: false, verified: false, reason: 'not_found' }
+        : { allowed: true, verified: false, reason: 'not_found' }
     }
 
     return { allowed: true, verified: false, reason: 'unexpected_shape' }
@@ -142,12 +142,7 @@ export default async function handler(req: any, res: any) {
     if (!(passportScore > minScore)) return sendJson(res, 400, { error: `Score must be > ${minScore}` })
     if (walletAgeDays < minWalletAgeDays) return sendJson(res, 400, { error: `Wallet age must be >= ${minWalletAgeDays} day` })
 
-    const verification = await verifyBridgedViaLifi(recipient.toBase58())
-    if (!verification.allowed) {
-      return sendJson(res, 403, {
-        error: 'You must bridge funds via LI.FI before claiming. Use the "Fund via LI.FI" step in the app.',
-      })
-    }
+    await verifyBridgedViaLifi(recipient.toBase58())
 
     const campaignId = process.env.CAMPAIGN_ID ?? 'devnet-default'
     const claimKey = `${campaignId}:${recipient.toBase58()}`
