@@ -20,28 +20,24 @@ interface StampState {
   value?: string
 }
 
-// icon + color for each stamp type
 function stampMeta(label: string): { emoji: string; color: string; bg: string } {
-  if (label.startsWith('GitHub'))    return { emoji: 'GH', color: '#e2e8f0', bg: '#24292e' }
-  if (label.startsWith('ENS'))       return { emoji: '[ETH]', color: '#627EEA', bg: 'rgba(98,126,234,0.15)' }
-  if (label.startsWith('SNS') || label.includes('.sol')) return { emoji: '[SOL]', color: '#9945FF', bg: 'rgba(153,69,255,0.15)' }
-  if (label.startsWith('SolanaID')) return { emoji: '[ID]', color: '#14F195', bg: 'rgba(20,241,149,0.1)' }
-  if (label.startsWith('Solana OG')) return { emoji: '[OG]', color: '#F59E0B', bg: 'rgba(245,158,11,0.15)' }
-  if (label.startsWith('Solana'))   return { emoji: '[S]',  color: '#9945FF', bg: 'rgba(153,69,255,0.12)' }
-  if (label.startsWith('Event'))    return { emoji: '[E]', color: '#00C2FF', bg: 'rgba(0,194,255,0.12)' }
-  return { emoji: '[*]', color: '#a1a1aa', bg: '#27272a' }
+  if (label.startsWith('GitHub'))   return { emoji: 'GH',    color: '#e2e8f0', bg: '#24292e' }
+  if (label.startsWith('ENS'))      return { emoji: 'ETH',   color: '#627EEA', bg: 'rgba(98,126,234,0.15)' }
+  if (label.startsWith('SNS') || label.includes('.sol')) return { emoji: 'SOL', color: '#9945FF', bg: 'rgba(153,69,255,0.15)' }
+  if (label.startsWith('SolanaID')) return { emoji: 'ID',    color: '#14F195', bg: 'rgba(20,241,149,0.1)' }
+  if (label.startsWith('Solana OG'))return { emoji: 'OG',    color: '#F59E0B', bg: 'rgba(245,158,11,0.15)' }
+  if (label.startsWith('Solana'))   return { emoji: 'SOL',   color: '#9945FF', bg: 'rgba(153,69,255,0.12)' }
+  if (label.startsWith('Event'))    return { emoji: 'EVT',   color: '#00C2FF', bg: 'rgba(0,194,255,0.12)' }
+  return { emoji: '*', color: '#a1a1aa', bg: '#27272a' }
 }
 
 export default function StampsStep({ passport, onDone, solAddress: solAddressProp }: Props) {
   const wallet = useWallet()
   const { connection } = useConnection()
-
   const solAddress = solAddressProp ?? wallet.publicKey?.toBase58() ?? null
 
   const [verified, setVerified] = useState<string[]>([])
-  // iconDataUrls: stamp label > data URL for event stamps from pkpass
   const [iconDataUrls, setIconDataUrls] = useState<Record<string, string>>({})
-
   const [ens, setEns] = useState<StampState>({ status: passport.ethAddress ? 'checking' : 'idle' })
   const [sns, setSns] = useState<StampState>({ status: solAddress ? 'checking' : 'idle' })
   const [solanaId, setSolanaId] = useState<StampState>({ status: solAddress ? 'checking' : 'idle' })
@@ -59,9 +55,7 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
   const addStamp = useCallback((stamp: string, iconUrl?: string) => {
     if (passport.stamps.includes(stamp)) return
     setVerified(prev => prev.includes(stamp) ? prev : [...prev, stamp])
-    if (iconUrl) {
-      setIconDataUrls(prev => ({ ...prev, [stamp]: iconUrl }))
-    }
+    if (iconUrl) setIconDataUrls(prev => ({ ...prev, [stamp]: iconUrl }))
   }, [passport.stamps])
 
   useEffect(() => {
@@ -114,10 +108,7 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
 
   const addEventStamp = useCallback((name: string, iconUrl?: string) => {
     const stamp = `Event?: ${name}`
-    if (passport.stamps.includes(stamp) || verified.includes(stamp)) {
-      setEventError('Ovaj event je već dodat')
-      return
-    }
+    if (passport.stamps.includes(stamp) || verified.includes(stamp)) { setEventError('Ovaj event je vec dodat'); return }
     addStamp(stamp, iconUrl)
     setEventInput('')
   }, [passport.stamps, verified, addStamp])
@@ -129,8 +120,8 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
     const attest = parseAttestation(data)
     if (attest) {
       const result = await verifyAttestation(attest, wallet.publicKey?.toBase58() ?? '')
-      if (!result.ok) { setEventError(result.reason ?? 'Verifikacija neuspešna'); return }
-      const issuerSuffix = result.issuerName ? ` · ${result.issuerName}` : ''
+      if (!result.ok) { setEventError(result.reason ?? 'Verifikacija neuspesna'); return }
+      const issuerSuffix = result.issuerName ? ` - ${result.issuerName}` : ''
       addStamp(`Event: ${attest.event}${issuerSuffix}`)
       return
     }
@@ -142,23 +133,20 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
     if (!file) return
     setEventError(null)
     e.target.value = ''
-
     if (file.name.endsWith('.ics')) {
       const text = await file.text()
       const name = parseIcs(text)
-      if (!name) { setEventError('Nije pronađen naziv eventa u .ics fajlu'); return }
+      if (!name) { setEventError('Nije pronadjen naziv eventa u .ics fajlu'); return }
       addEventStamp(name)
       return
     }
-
     if (file.name.endsWith('.pkpass')) {
       const result = await parsePkpass(file)
-      if (!result) { setEventError('Nije pronađen naziv eventa u .pkpass fajlu'); return }
+      if (!result) { setEventError('Nije pronadjen naziv eventa u .pkpass fajlu'); return }
       addEventStamp(result.name, result.iconDataUrl)
       return
     }
-
-    setEventError('Podržani formati: .ics, .pkpass')
+    setEventError('Podrzani formati: .ics, .pkpass')
   }, [addEventStamp])
 
   const handleEventSubmit = useCallback(async () => {
@@ -170,10 +158,10 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
     if (!attest) { setEventError('Unesi event atestaciju u JSON formatu'); return }
     setEventStatus('verifying')
     const result = await verifyAttestation(attest, wallet.publicKey?.toBase58() ?? '')
-    if (!result.ok) { setEventError(result.reason ?? 'Verifikacija neuspešna'); setEventStatus('error'); return }
-    const issuerSuffix = result.issuerName ? ` · ${result.issuerName}` : ''
+    if (!result.ok) { setEventError(result.reason ?? 'Verifikacija neuspesna'); setEventStatus('error'); return }
+    const issuerSuffix = result.issuerName ? ` - ${result.issuerName}` : ''
     const stamp = `Event: ${attest.event}${issuerSuffix}`
-    if (passport.stamps.includes(stamp) || verified.includes(stamp)) { setEventError('Ovaj event je već dodat'); setEventStatus('idle'); return }
+    if (passport.stamps.includes(stamp) || verified.includes(stamp)) { setEventError('Ovaj event je vec dodat'); setEventStatus('idle'); return }
     addStamp(stamp)
     setEventInput('')
     setEventStatus('idle')
@@ -200,7 +188,6 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
     }
   }, [addStamp])
 
-  // All collected stamps (from passport + newly verified)
   const allStamps = [
     ...passport.stamps,
     ...verified.filter(s => !passport.stamps.includes(s)),
@@ -208,8 +195,6 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
 
   return (
     <div className="space-y-4">
-
-      {/* Collection header */}
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-white">Your Badge Collection</p>
@@ -223,7 +208,6 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
         )}
       </div>
 
-      {/* Auto-detected badges */}
       <div className="space-y-2">
         <p className="text-[11px] text-zinc-500 uppercase tracking-wider font-medium">Auto-detected</p>
         <BadgeCard label="Solana Wallet" description="Wallet age & activity" state={solana} />
@@ -234,11 +218,8 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
         )}
       </div>
 
-      {/* Event badges */}
       <div className="space-y-2">
         <p className="text-[11px] text-zinc-500 uppercase tracking-wider font-medium">Event Badges</p>
-
-        {/* Already collected events */}
         {allStamps.filter(s => s.startsWith('Event')).length > 0 && (
           <div className="grid grid-cols-2 gap-2">
             {allStamps.filter(s => s.startsWith('Event')).map(s => {
@@ -250,7 +231,7 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
                   style={{ background: meta.bg, borderColor: 'rgba(0,194,255,0.2)' }}>
                   {iconUrl
                     ? <img src={iconUrl} alt="" className="w-7 h-7 rounded-lg object-cover shrink-0" />
-                    : <span className="text-xl shrink-0">{meta.emoji}</span>
+                    : <span className="text-xs font-bold shrink-0" style={{ color: meta.color }}>{meta.emoji}</span>
                   }
                   <span className="text-xs font-medium text-white leading-tight truncate">{name}</span>
                 </div>
@@ -259,7 +240,6 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
           </div>
         )}
 
-        {/* QR scan */}
         {scanning ? (
           <QrScanner onResult={handleQrResult} onClose={() => setScanning(false)} />
         ) : (
@@ -272,7 +252,6 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
           </button>
         )}
 
-        {/* File upload */}
         <div className="flex items-center gap-2">
           <label className="cursor-pointer flex-1 text-center text-xs px-3 py-2 rounded-xl font-medium border border-dashed transition-colors"
             style={{ background: 'rgba(0,194,255,0.05)', borderColor: 'rgba(0,194,255,0.15)', color: '#71717a' }}>
@@ -281,7 +260,6 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
           </label>
         </div>
 
-        {/* Manual JSON paste */}
         <div className="flex gap-2">
           <input
             type="text"
@@ -309,7 +287,6 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
         {eventError && <p className="text-xs text-red-400">{eventError}</p>}
       </div>
 
-      {/* GitHub badge */}
       <div className="space-y-2">
         <p className="text-[11px] text-zinc-500 uppercase tracking-wider font-medium">Developer Badges</p>
         <div className="flex items-center justify-between rounded-xl px-3 py-2.5 border"
@@ -318,7 +295,7 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
             borderColor: hasGithubStamp || githubStep === 'done' ? 'rgba(36,41,46,0.8)' : '#3f3f46',
           }}>
           <div className="flex items-center gap-2.5">
-            <span className="text-xl">GH</span>
+            <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ background: '#24292e', color: '#e2e8f0' }}>GH</span>
             <div>
               <p className="text-xs font-semibold text-white">GitHub</p>
               <p className="text-[10px] text-zinc-500">Verified developer account</p>
@@ -339,4 +316,82 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
           )}
         </div>
         {(githubStep === 'code' || githubStep === 'polling') && userCode && (
-          <div className="border border-zinc-700 rounded-xl p-3 space-y-2
+          <div className="border border-zinc-700 rounded-xl p-3 space-y-2">
+            <p className="text-xs text-zinc-400">Enter this code on GitHub:</p>
+            <p className="text-2xl font-mono font-bold tracking-widest text-center text-white">{userCode}</p>
+            <a href="https://github.com/login/device" target="_blank" rel="noopener noreferrer"
+              className="block text-center text-xs text-purple-400 hover:text-purple-300">
+              github.com/login/device
+            </a>
+          </div>
+        )}
+      </div>
+
+      {error && <p className="text-xs text-red-400">{error}</p>}
+
+      {verified.length > 0 && (
+        <div className="rounded-xl border border-emerald-800/30 bg-emerald-950/20 p-3 space-y-2">
+          <p className="text-xs text-emerald-400 font-medium">+{verified.length} new badge{verified.length > 1 ? 's' : ''} earned</p>
+          <div className="flex flex-wrap gap-1.5">
+            {verified.map(s => {
+              const meta = stampMeta(s)
+              const iconUrl = iconDataUrls[s]
+              return (
+                <span key={s} className="flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium"
+                  style={{ background: 'rgba(20,241,149,0.12)', color: '#14F195', border: '1px solid rgba(20,241,149,0.25)' }}>
+                  {iconUrl
+                    ? <img src={iconUrl} alt="" className="w-4 h-4 rounded object-cover" />
+                    : <span style={{ color: meta.color }}>{meta.emoji}</span>
+                  }
+                  {s.length > 32 ? s.slice(0, 32) + '...' : s}
+                </span>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      <button onClick={() => onDone(verified)}
+        className="w-full text-black text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
+        style={{ background: '#14F195' }}>
+        {verified.length > 0 ? `Continue with ${verified.length} badge${verified.length > 1 ? 's' : ''} >` : 'Continue >'}
+      </button>
+    </div>
+  )
+}
+
+function BadgeCard({ label, description, state }: {
+  label: string
+  description: string
+  state: StampState
+}) {
+  const meta = stampMeta(label)
+  const earned = state.status === 'found' || state.status === 'already_added'
+
+  return (
+    <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 border transition-all"
+      style={{
+        background: earned ? meta.bg : '#18181b',
+        borderColor: earned ? meta.color + '33' : '#3f3f46',
+        opacity: earned ? 1 : 0.7,
+      }}>
+      <span className="text-xs font-bold px-1 shrink-0" style={{ color: meta.color }}>{meta.emoji}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold text-white">{label}</p>
+        <p className="text-[10px] text-zinc-500 truncate">{description}</p>
+      </div>
+      <div className="shrink-0">
+        {state.status === 'checking' && <span className="text-[10px] text-zinc-500 animate-pulse">Checking...</span>}
+        {earned && (
+          <span className="text-[10px] font-bold truncate max-w-24 block text-right" style={{ color: meta.color }}>
+            v {state.value ? (state.value.length > 16 ? state.value.slice(0, 16) + '...' : state.value) : 'Earned'}
+          </span>
+        )}
+        {state.status === 'not_found' && (
+          <span className="text-[10px] text-zinc-600">{state.value ?? 'Not found'}</span>
+        )}
+        {state.status === 'error' && <span className="text-[10px] text-red-500">Error</span>}
+      </div>
+    </div>
+  )
+}
