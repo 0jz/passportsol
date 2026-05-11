@@ -8,7 +8,7 @@ from pptx.util import Inches, Pt
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / "PassportSOL_Pitch_Graphics_Short_v3.pptx"
+OUTPUT = ROOT / "PassportSOL_Pitch_Graphics_Short_v4_team.pptx"
 
 
 BG = RGBColor(248, 244, 237)
@@ -259,6 +259,55 @@ def build():
     add_screenshot_placeholder(slide, Inches(6.2), Inches(1.05), Inches(5.7), Inches(5.9), "HERO APP SHOT")
     add_text(slide, Inches(0.85), Inches(6.7), Inches(11.5), Inches(0.3),
              "github.com/0jz/passportsol", size=11, color=MUTED, align=PP_ALIGN.CENTER)
+
+    # 8 team
+    slide = prs.slides.add_slide(blank)
+    set_bg(slide)
+    add_kicker(slide, "TEAM")
+    add_title(slide, "Who is building PassportSOL?", top=0.9, width=6.0, size=28)
+    add_text(slide, Inches(0.85), Inches(1.75), Inches(4.9), Inches(0.8),
+             "Keep this slide short, personal, and easy to scan.", size=18, color=MUTED)
+
+    # Founder / you
+    add_round(slide, Inches(0.88), Inches(2.45), Inches(5.15), Inches(3.45), WHITE, LINE)
+    add_round(slide, Inches(1.18), Inches(2.8), Inches(1.1), Inches(1.1), PLUM, PLUM, 0)
+    add_text(slide, Inches(1.18), Inches(3.07), Inches(1.1), Inches(0.35), "YOU",
+             size=18, color=WHITE, bold=True, align=PP_ALIGN.CENTER)
+    add_text(slide, Inches(2.55), Inches(2.82), Inches(2.9), Inches(0.35), "[ Your Name ]",
+             font="Georgia", size=23, color=INK, bold=True)
+    add_text(slide, Inches(2.55), Inches(3.25), Inches(2.4), Inches(0.28), "[ Founder / Builder ]",
+             size=14, color=FOREST, bold=True)
+    add_bullets(
+        slide, Inches(1.22), Inches(4.15), Inches(4.2), Inches(1.35),
+        [
+            "1 line on your background",
+            "1 line on why you care",
+            "1 line on what you own"
+        ],
+        size=15
+    )
+
+    # Team placeholders
+    add_round(slide, Inches(6.45), Inches(2.45), Inches(5.0), Inches(1.45), CARD, LINE)
+    add_text(slide, Inches(6.78), Inches(2.82), Inches(2.2), Inches(0.28), "[ Team Member 2 ]",
+             font="Georgia", size=20, color=INK, bold=True)
+    add_text(slide, Inches(6.78), Inches(3.18), Inches(2.8), Inches(0.28), "[ Role / focus ]",
+             size=14, color=FOREST, bold=True)
+    add_text(slide, Inches(6.78), Inches(3.48), Inches(3.9), Inches(0.22), "Short proof point or specialty",
+             size=13, color=MUTED)
+
+    add_round(slide, Inches(6.45), Inches(4.45), Inches(5.0), Inches(1.45), CARD, LINE)
+    add_text(slide, Inches(6.78), Inches(4.82), Inches(2.2), Inches(0.28), "[ Team Member 3 ]",
+             font="Georgia", size=20, color=INK, bold=True)
+    add_text(slide, Inches(6.78), Inches(5.18), Inches(2.8), Inches(0.28), "[ Role / focus ]",
+             size=14, color=FOREST, bold=True)
+    add_text(slide, Inches(6.78), Inches(5.48), Inches(3.9), Inches(0.22), "Short proof point or specialty",
+             size=13, color=MUTED)
+
+    add_round(slide, Inches(0.9), Inches(6.25), Inches(10.6), Inches(0.72), WHITE, LINE)
+    add_text(slide, Inches(1.15), Inches(6.48), Inches(10.0), Inches(0.22),
+             "Tip: use this slide to show why this team can win, not to paste full bios.",
+             size=13, color=MUTED, align=PP_ALIGN.CENTER)
 
     prs.save(OUTPUT)
     print(f"Created: {OUTPUT}")
