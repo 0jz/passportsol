@@ -22,14 +22,14 @@ interface StampState {
 
 // icon + color for each stamp type
 function stampMeta(label: string): { emoji: string; color: string; bg: string } {
-  if (label.startsWith('GitHub'))    return { emoji: '🐙', color: '#e2e8f0', bg: '#24292e' }
-  if (label.startsWith('ENS'))       return { emoji: '🔷', color: '#627EEA', bg: 'rgba(98,126,234,0.15)' }
-  if (label.startsWith('SNS') || label.includes('.sol')) return { emoji: '🌐', color: '#9945FF', bg: 'rgba(153,69,255,0.15)' }
-  if (label.startsWith('SolanaID')) return { emoji: '🪪', color: '#14F195', bg: 'rgba(20,241,149,0.1)' }
-  if (label.startsWith('Solana OG')) return { emoji: '🏆', color: '#F59E0B', bg: 'rgba(245,158,11,0.15)' }
-  if (label.startsWith('Solana'))   return { emoji: '◎',  color: '#9945FF', bg: 'rgba(153,69,255,0.12)' }
-  if (label.startsWith('Event'))    return { emoji: '🎫', color: '#00C2FF', bg: 'rgba(0,194,255,0.12)' }
-  return { emoji: '✦', color: '#a1a1aa', bg: '#27272a' }
+  if (label.startsWith('GitHub'))    return { emoji: 'GH', color: '#e2e8f0', bg: '#24292e' }
+  if (label.startsWith('ENS'))       return { emoji: '[ETH]', color: '#627EEA', bg: 'rgba(98,126,234,0.15)' }
+  if (label.startsWith('SNS') || label.includes('.sol')) return { emoji: '[SOL]', color: '#9945FF', bg: 'rgba(153,69,255,0.15)' }
+  if (label.startsWith('SolanaID')) return { emoji: '[ID]', color: '#14F195', bg: 'rgba(20,241,149,0.1)' }
+  if (label.startsWith('Solana OG')) return { emoji: '[OG]', color: '#F59E0B', bg: 'rgba(245,158,11,0.15)' }
+  if (label.startsWith('Solana'))   return { emoji: '[S]',  color: '#9945FF', bg: 'rgba(153,69,255,0.12)' }
+  if (label.startsWith('Event'))    return { emoji: '[E]', color: '#00C2FF', bg: 'rgba(0,194,255,0.12)' }
+  return { emoji: '[*]', color: '#a1a1aa', bg: '#27272a' }
 }
 
 export default function StampsStep({ passport, onDone, solAddress: solAddressProp }: Props) {
@@ -39,7 +39,7 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
   const solAddress = solAddressProp ?? wallet.publicKey?.toBase58() ?? null
 
   const [verified, setVerified] = useState<string[]>([])
-  // iconDataUrls: stamp label → data URL for event stamps from pkpass
+  // iconDataUrls: stamp label > data URL for event stamps from pkpass
   const [iconDataUrls, setIconDataUrls] = useState<Record<string, string>>({})
 
   const [ens, setEns] = useState<StampState>({ status: passport.ethAddress ? 'checking' : 'idle' })
@@ -268,7 +268,7 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
             className="w-full flex items-center justify-center gap-2 text-xs px-3 py-2.5 rounded-xl font-medium transition-colors border border-dashed"
             style={{ background: 'rgba(0,194,255,0.05)', borderColor: 'rgba(0,194,255,0.25)', color: '#00C2FF' }}
           >
-            📷 Scan event QR
+            [QR] Scan event QR
           </button>
         )}
 
@@ -318,16 +318,16 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
             borderColor: hasGithubStamp || githubStep === 'done' ? 'rgba(36,41,46,0.8)' : '#3f3f46',
           }}>
           <div className="flex items-center gap-2.5">
-            <span className="text-xl">🐙</span>
+            <span className="text-xl">GH</span>
             <div>
               <p className="text-xs font-semibold text-white">GitHub</p>
               <p className="text-[10px] text-zinc-500">Verified developer account</p>
             </div>
           </div>
           {hasGithubStamp ? (
-            <span className="text-xs font-medium text-zinc-500">✓ Added</span>
+            <span className="text-xs font-medium text-zinc-500">v Added</span>
           ) : githubStep === 'done' ? (
-            <span className="text-xs font-medium" style={{ color: '#14F195' }}>✓ Earned</span>
+            <span className="text-xs font-medium" style={{ color: '#14F195' }}>v Earned</span>
           ) : githubStep === 'idle' ? (
             <button onClick={startGithub} disabled={loading}
               className="text-xs font-medium px-3 py-1 rounded-lg disabled:opacity-50"

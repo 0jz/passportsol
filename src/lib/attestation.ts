@@ -83,4 +83,23 @@ export async function parsePkpass(file: File): Promise<PkpassResult | null> {
       pass.description ||
       pass.eventTicket?.primaryFields?.[0]?.value ||
       pass.generic?.primaryFields?.[0]?.value ||
-      p
+      pass.organizationName
+    if (!name) return null
+
+    // Try to extract event icon image
+    let iconDataUrl: string | undefined
+    const iconBytes = files['icon@2x.png'] ?? files['icon.png'] ?? files['logo@2x.png'] ?? files['logo.png']
+    if (iconBytes) {
+      const blob = new Blob([iconBytes], { type: 'image/png' })
+      iconDataUrl = await new Promise<string>(resolve => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.readAsDataURL(blob)
+      })
+    }
+
+    return { name, iconDataUrl }
+  } catch {
+    return null
+  }
+}
