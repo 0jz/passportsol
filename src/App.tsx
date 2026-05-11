@@ -17,6 +17,8 @@ import StampsStep from './components/StampsStep'
 import SuccessCard from './components/SuccessCard'
 import VerifyPage from './components/VerifyPage'
 import LifiAirdropPanel from './components/LifiAirdropPanel'
+import BridgeGateStep from './components/BridgeGateStep'
+import { CAMPAIGN_PUBLIC_CONFIG } from './config/campaign'
 
 // ─── localStorage helpers ────────────────────────────────────────────────────
 
@@ -120,6 +122,7 @@ export default function App() {
   const [claimState, setClaimState] = useState<'idle' | 'claiming' | 'claimed' | 'error'>('idle')
   const [claimTxHash, setClaimTxHash] = useState<string | null>(null)
   const [claimError, setClaimError] = useState<string | null>(null)
+  const [bridgeComplete, setBridgeComplete] = useState(false)
 
   const connectInsidePhantom = useCallback(async () => {
     const injected = (window as unknown as {
@@ -298,6 +301,7 @@ export default function App() {
       setError(null)
       setWalletAgeDays(0)
       setSolBalance(null)
+      setBridgeComplete(false)
       return
     }
 
@@ -310,7 +314,14 @@ export default function App() {
 
     setSyncing(true)
     connection.getBalance(new PublicKey(effectivePubkey))
-      .then(v => setSolBalance(v / LAMPORTS_PER_SOL))
+      .then(v => {
+        const bal = v / LAMPORTS_PER_SOL
+        setSolBalance(bal)
+        // Auto-skip bridge step if wallet is already funded
+        if (bal >= CAMPAIGN_PUBLIC_CONFIG.minSolForClaim) {
+          setBridgeComplete(true)
+        }
+      })
       .catch(() => setSolBalance(null))
     getWalletAgeDays(effectivePubkey, connection)
       .then(setWalletAgeDays)
@@ -631,8 +642,8 @@ export default function App() {
         /* ── Mint stepper ──────────────────────────────────────────────────── */
         <div className="max-w-lg mx-auto px-4 py-12">
           <div className="space-y-3">
-            {/* Step 1 — wallet (shown as done, with disconnect option) */}
-            <StepCard number={1} title="Connect Solana Wallet" done={step >= 1} active={false}>
+            {/* Step 0 — wallet (shown as done, with disconnect option) */}
+            <StepCard number={0} title="Connect Solana Wallet" done={step >= 1} active={false}>
               <div className="flex flex-col gap-2">
                 {deepLinkPub ? (
                   <div className="flex items-center gap-2">
@@ -650,9 +661,26 @@ export default function App() {
               </div>
             </StepCard>
 
+            {/* Step 1 — LI.FI Bridge (mandatory entry point) */}
+            <StepCard number={1} title="Fund via LI.FI" done={bridgeComplete} active={step >= 1 && !bridgeComplete && !syncing} locked={step < 1 || syncing}>
+              {step >= 1 && !bridgeComplete && !syncing && effectivePubkey && (
+                <BridgeGateStep
+                  solAddress={effectivePubkey}
+                  solBalance={solBalance}
+                  onReady={() => setBridgeComplete(true)}
+                  onBalanceRefresh={handleBalanceRefresh}
+                />
+              )}
+              {bridgeComplete && (
+                <p className="text-xs text-zinc-500">
+                  {solBalance !== null ? `${solBalance.toFixed(5)} SOL` : 'Funded'} — ready
+                </p>
+              )}
+            </StepCard>
+
             {/* Step 2 — optional ETH */}
-            <StepCard number={2} title="Link Ethereum Identity" badge="optional" done={step >= 2} active={step === 1 && !syncing} locked={step < 1 || syncing}>
-              {step === 1 && (
+            <StepCard number={2} title="Link Ethereum Identity" badge="optional" done={step >= 2} active={bridgeComplete && step === 1 && !syncing} locked={!bridgeComplete || step < 1 || syncing}>
+              {bridgeComplete && step === 1 && (
                 <EthStep
                   solanaAddress={effectivePubkey ?? wallet.publicKey?.toBase58() ?? ''}
                   onDone={setPassport}
@@ -667,10 +695,10 @@ export default function App() {
             </StepCard>
 
             {/* Step 3 — stamps */}
-            <StepCard number={3} title="Add Stamps" badge="optional" done={step >= 3} active={step === 2} locked={step < 2}>
-              {step === 2 && passport && (
+            <StepCard number={3} title="Add Stamps" badge="optional" done={step >= 3} active={bridgeComplete && step === 2} locked={!bridgeComplete || step < 2}>
+              {bridgeComplete && step === 2 && passport && (
                 <>
-                  <StampsStep passport={passport} onDone={handleStampsDone} />
+                  <StampsStep passport={passport} onDone={handleStampsDone} solAddress={effectivePubkey} />
                   <button onClick={handleBackToEth} className="text-zinc-600 hover:text-zinc-400 text-xs py-1 transition-colors">
                     ← Back
                   </button>
@@ -692,8 +720,8 @@ export default function App() {
             </StepCard>
 
             {/* Step 4 — mint */}
-            <StepCard number={4} title="Mint Passport On-Chain" done={step >= 4} active={step === 3} locked={step < 3}>
-              {step === 3 && !txHash && (
+            <StepCard number={4} title="Mint Passport On-Chain" done={step >= 4} active={bridgeComplete && step === 3} locked={!bridgeComplete || step < 3}>
+              {bridgeComplete && step === 3 && !txHash && (
                 <div className="flex items-center gap-3">
                   {useDeepLink && readyToSign ? (
                     <button
@@ -774,7 +802,7 @@ export default function App() {
                     </p>
                   </div>
                   <p className="text-sm font-medium text-white">Add Stamps</p>
-                  <StampsStep passport={passport} onDone={handleMoreStampsDone} />
+                  <StampsStep passport={passport} onDone={handleMoreStampsDone} solAddress={effectivePubkey} />
                 </div>
               )}
 
