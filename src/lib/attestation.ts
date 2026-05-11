@@ -66,7 +66,12 @@ export function parseIcs(text: string): string | null {
   return summary ?? null
 }
 
-export async function parsePkpass(file: File): Promise<string | null> {
+export interface PkpassResult {
+  name: string
+  iconDataUrl?: string
+}
+
+export async function parsePkpass(file: File): Promise<PkpassResult | null> {
   try {
     const buffer = await file.arrayBuffer()
     const files = unzipSync(new Uint8Array(buffer))
@@ -78,9 +83,4 @@ export async function parsePkpass(file: File): Promise<string | null> {
       pass.description ||
       pass.eventTicket?.primaryFields?.[0]?.value ||
       pass.generic?.primaryFields?.[0]?.value ||
-      pass.organizationName
-    return name ?? null
-  } catch {
-    return null
-  }
-}
+      p
