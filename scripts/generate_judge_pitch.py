@@ -29,7 +29,7 @@ SLIDES = [
         "kicker": "PASSPORTSOL",
         "title": "Gitcoin gives the seed.\nSolana grows the passport.",
         "body": [
-            "PassportSOL turns Gitcoin trust plus public Solana activity into collectible stamps.",
+            "On-chain reputation with collectables.",
             "Communities use that passport to reward real participation, not anonymous wallets.",
         ],
         "accent": "seed + signal",
@@ -101,7 +101,7 @@ SLIDES = [
 SCRIPT_TEXT = """# PassportSOL Judge Pitch
 
 ## One-liner
-PassportSOL turns Gitcoin trust plus public Solana activity into collectible stamps that communities can reward.
+On-chain reputation with collectables.
 
 ## Two-minute pitch
 
