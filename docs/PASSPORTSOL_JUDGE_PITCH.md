@@ -1,7 +1,7 @@
 # PassportSOL Judge Pitch
 
 ## One-liner
-On-chain reputation with collectables.
+On-chain reputation with collectibles.
 
 ## Two-minute pitch
 
