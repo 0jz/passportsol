@@ -1,6 +1,6 @@
 import { calculatePassportScore } from '../src/lib/scoring.js'
 
-// ── LI.FI bridge verification ─────────────────────────────────────────────────
+// LI.FI bridge verification
 // Checks that this Solana wallet has at least one completed bridge
 // via PassportSOL's LI.FI integrator tag before allowing a claim.
 async function verifyBridgedViaLifi(solAddress: string): Promise<boolean> {
@@ -13,15 +13,15 @@ async function verifyBridgedViaLifi(solAddress: string): Promise<boolean> {
       signal: controller.signal,
     })
     clearTimeout(timer)
-    if (!res.ok) return true // graceful fallback — don't block if LI.FI API is unreachable
+    if (!res.ok) return true // graceful fallback -- don't block if LI.FI API is unreachable
     const data = await res.json() as { transfers?: unknown[]; data?: unknown[]; count?: number }
     const transfers = data.transfers ?? data.data ?? []
     if (Array.isArray(transfers)) return transfers.length > 0
     if (typeof data.count === 'number') return data.count > 0
-    return true // unexpected shape — allow with benefit of doubt
+    return true // unexpected shape -- allow with benefit of doubt
   } catch {
     clearTimeout(timer)
-    return true // network error or abort — don't block the demo
+    return true // network error or abort -- don't block the demo
   }
 }
 
@@ -88,8 +88,52 @@ export default async function handler(req: any, res: any) {
     if (!(passportScore > minScore)) return sendJson(res, 400, { error: `Score must be > ${minScore}` })
     if (walletAgeDays < minWalletAgeDays) return sendJson(res, 400, { error: `Wallet age must be >= ${minWalletAgeDays} day` })
 
-    // ── LI.FI bridge verification ─────────────────────────────────────────────
+    // LI.FI bridge verification
     const bridged = await verifyBridgedViaLifi(recipient.toBase58())
     if (!bridged) {
       return sendJson(res, 403, {
-        error: 'You must bridg
+        error: 'You must bridge funds via LI.FI before claiming. Use the Fund via LI.FI step in the app.',
+      })
+    }
+
+    const campaignId = process.env.CAMPAIGN_ID ?? 'devnet-default'
+    const claimKey = `${campaignId}:${recipient.toBase58()}`
+    if (claimed.has(claimKey)) return sendJson(res, 409, { error: 'This wallet already claimed for this campaign' })
+
+    const rpc = process.env.SOLANA_RPC_URL
+    const mintAddress = process.env.AIRDROP_TOKEN_MINT
+    const treasurySecret = process.env.CLAIM_TREASURY_SECRET
+    const airdropAmount = envNum('AIRDROP_AMOUNT', 10)
+    if (!rpc || !mintAddress || !treasurySecret) {
+      return sendJson(res, 500, { error: 'Missing server env configuration' })
+    }
+
+    const connection = new web3.Connection(rpc, 'confirmed')
+    const treasury = web3.Keypair.fromSecretKey(parseSecretKey(treasurySecret))
+    const mint = new web3.PublicKey(mintAddress)
+
+    const mintInfo = await splToken.getMint(connection, mint)
+    const decimals = mintInfo.decimals
+    const baseUnits = BigInt(Math.floor(airdropAmount * 10 ** decimals))
+    if (baseUnits <= 0n) return sendJson(res, 400, { error: 'Airdrop amount resolves to zero base units' })
+
+    const sourceAta = splToken.getAssociatedTokenAddressSync(mint, treasury.publicKey)
+    const destinationAta = await splToken.getOrCreateAssociatedTokenAccount(connection, treasury, mint, recipient)
+
+    const txHash = await splToken.transfer(
+      connection,
+      treasury,
+      sourceAta,
+      destinationAta.address,
+      treasury.publicKey,
+      baseUnits,
+    )
+
+    claimed.add(claimKey)
+    sendJson(res, 200, { ok: true, txHash })
+  } catch (e) {
+    sendJson(res, 500, { error: (e as Error).message })
+  }
+}
+
+export const config = { runtime: 'nodejs' }
