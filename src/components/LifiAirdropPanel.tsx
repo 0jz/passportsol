@@ -183,9 +183,19 @@ export default function LifiAirdropPanel({
       )}
 
       {hasEnoughSol && claimState !== 'claimed' && (
-        <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 rounded-lg px-3 py-2">
-          <span>&#10003;</span>
-          <span>Wallet funded and ready to claim.</span>
+        <div
+          className={
+            canClaim
+              ? 'flex items-center gap-2 text-xs text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 rounded-lg px-3 py-2'
+              : 'flex items-center gap-2 text-xs text-amber-300 bg-amber-950/30 border border-amber-800/40 rounded-lg px-3 py-2'
+          }
+        >
+          <span>{canClaim ? '✓' : '!'}</span>
+          <span>
+            {canClaim
+              ? 'Wallet funded and ready to claim.'
+              : `Wallet funded, but claim is still locked: ${eligibility.reasons.join(' · ')}`}
+          </span>
         </div>
       )}
 
