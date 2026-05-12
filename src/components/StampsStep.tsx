@@ -125,7 +125,7 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
       addStamp(`Event: ${attest.event}${issuerSuffix}`)
       return
     }
-    setEventError('QR nije prepoznat kao event atestacija')
+    setEventError('QR code not recognized as an event attestation')
   }, [addStamp, wallet.publicKey])
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
