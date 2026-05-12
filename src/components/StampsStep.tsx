@@ -108,7 +108,7 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
 
   const addEventStamp = useCallback((name: string, iconUrl?: string) => {
     const stamp = `Event?: ${name}`
-    if (passport.stamps.includes(stamp) || verified.includes(stamp)) { setEventError('Ovaj event je vec dodat'); return }
+    if (passport.stamps.includes(stamp) || verified.includes(stamp)) { setEventError('This event has already been added'); return }
     addStamp(stamp, iconUrl)
     setEventInput('')
   }, [passport.stamps, verified, addStamp])
@@ -120,7 +120,7 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
     const attest = parseAttestation(data)
     if (attest) {
       const result = await verifyAttestation(attest, wallet.publicKey?.toBase58() ?? '')
-      if (!result.ok) { setEventError(result.reason ?? 'Verifikacija neuspesna'); return }
+      if (!result.ok) { setEventError(result.reason ?? 'Verification failed'); return }
       const issuerSuffix = result.issuerName ? ` - ${result.issuerName}` : ''
       addStamp(`Event: ${attest.event}${issuerSuffix}`)
       return
@@ -136,17 +136,17 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
     if (file.name.endsWith('.ics')) {
       const text = await file.text()
       const name = parseIcs(text)
-      if (!name) { setEventError('Nije pronadjen naziv eventa u .ics fajlu'); return }
+      if (!name) { setEventError('No event name found in .ics file'); return }
       addEventStamp(name)
       return
     }
     if (file.name.endsWith('.pkpass')) {
       const result = await parsePkpass(file)
-      if (!result) { setEventError('Nije pronadjen naziv eventa u .pkpass fajlu'); return }
+      if (!result) { setEventError('No event name found in .pkpass file'); return }
       addEventStamp(result.name, result.iconDataUrl)
       return
     }
-    setEventError('Podrzani formati: .ics, .pkpass')
+    setEventError('Supported formats: .ics, .pkpass')
   }, [addEventStamp])
 
   const handleEventSubmit = useCallback(async () => {
@@ -158,10 +158,10 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
     if (!attest) { setEventError('Enter event attestation in JSON format'); return }
     setEventStatus('verifying')
     const result = await verifyAttestation(attest, wallet.publicKey?.toBase58() ?? '')
-    if (!result.ok) { setEventError(result.reason ?? 'Verifikacija neuspesna'); setEventStatus('error'); return }
+    if (!result.ok) { setEventError(result.reason ?? 'Verification failed'); setEventStatus('error'); return }
     const issuerSuffix = result.issuerName ? ` - ${result.issuerName}` : ''
     const stamp = `Event: ${attest.event}${issuerSuffix}`
-    if (passport.stamps.includes(stamp) || verified.includes(stamp)) { setEventError('Ovaj event je vec dodat'); setEventStatus('idle'); return }
+    if (passport.stamps.includes(stamp) || verified.includes(stamp)) { setEventError('This event has already been added'); setEventStatus('idle'); return }
     addStamp(stamp)
     setEventInput('')
     setEventStatus('idle')
