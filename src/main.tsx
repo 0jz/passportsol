@@ -33,7 +33,7 @@ const queryClient = new QueryClient()
 
 function Providers({ children }: { children: React.ReactNode }) {
   const endpoint = useMemo(
-    () => import.meta.env.VITE_SOLANA_RPC_URL || clusterApiUrl(WalletAdapterNetwork.Devnet),
+    () => import.meta.env.VITE_SOLANA_RPC_URL || clusterApiUrl(WalletAdapterNetwork.Mainnet),
     [],
   )
   const wallets = useMemo(() => [new LedgerWalletAdapter()], [])
