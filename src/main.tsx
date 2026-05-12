@@ -16,15 +16,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import App from './App.tsx'
 
+// Public RPC endpoints that allow CORS from any origin
 const wagmiConfig = createConfig({
   chains: [mainnet, arbitrum, optimism, polygon, base],
   connectors: [injected()],
   transports: {
-    [mainnet.id]: http(),
-    [arbitrum.id]: http(),
-    [optimism.id]: http(),
-    [polygon.id]: http(),
-    [base.id]: http(),
+    [mainnet.id]:  http('https://cloudflare-eth.com'),
+    [arbitrum.id]: http('https://arb1.arbitrum.io/rpc'),
+    [optimism.id]: http('https://mainnet.optimism.io'),
+    [polygon.id]:  http('https://polygon-rpc.com'),
+    [base.id]:     http('https://mainnet.base.org'),
   },
 })
 
