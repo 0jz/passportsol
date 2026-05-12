@@ -8,7 +8,7 @@ const LiFiWidget = lazy(() =>
   import('@lifi/widget').then(m => ({ default: m.LiFiWidget }))
 )
 
-// Detect devnet from env (VITE_SOLANA_RPC_URL or VITE_SOLANA_RPC_FALLBACK contains "devnet")
+// Detect devnet from env variables
 const IS_DEVNET =
   (import.meta.env.VITE_SOLANA_RPC_URL ?? '').includes('devnet') ||
   (import.meta.env.VITE_SOLANA_RPC_FALLBACK ?? '').includes('devnet')
@@ -112,15 +112,17 @@ export default function BridgeGateStep({
                     address: solAddress,
                     chainType: ChainType.SVM,
                   },
-                  rpcUrls: {
-                    1:     ['https://rpc.ankr.com/eth'],
-                    42161: ['https://rpc.ankr.com/arbitrum'],
-                    10:    ['https://rpc.ankr.com/optimism'],
-                    137:   ['https://rpc.ankr.com/polygon'],
-                    8453:  ['https://rpc.ankr.com/base'],
-                    56:    ['https://rpc.ankr.com/bsc'],
-                    43114: ['https://rpc.ankr.com/avalanche'],
-                    [LIFI_SOLANA_CHAIN_ID]: ['https://rpc.ankr.com/solana'],
+                  sdkConfig: {
+                    rpcUrls: {
+                      1:     ['https://rpc.ankr.com/eth'],
+                      42161: ['https://rpc.ankr.com/arbitrum'],
+                      10:    ['https://rpc.ankr.com/optimism'],
+                      137:   ['https://rpc.ankr.com/polygon'],
+                      8453:  ['https://rpc.ankr.com/base'],
+                      56:    ['https://rpc.ankr.com/bsc'],
+                      43114: ['https://rpc.ankr.com/avalanche'],
+                      [LIFI_SOLANA_CHAIN_ID]: ['https://rpc.ankr.com/solana'],
+                    },
                   },
                   variant: 'compact' as const,
                 }}
