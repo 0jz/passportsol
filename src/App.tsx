@@ -448,9 +448,9 @@ export default function App() {
   const handleDelete = useCallback(async () => {
     if (!effectivePubkey) return
     if (!window.confirm(
-      'Ovo će poništiti pasoš na ovoj Solana adresi.\n\n' +
-      'Biće kreirana nova on-chain transakcija (mali network fee).\n' +
-      'Nakon toga možeš mintovati potpuno novi pasoš.'
+      'This will invalidate the passport for this Solana address.\n\n' +
+      'A new on-chain transaction will be created (small network fee).\n' +
+      'After that you can mint a brand new passport.'
     )) return
     setError(null)
     if (useDeepLink && deepLinkPub) {
