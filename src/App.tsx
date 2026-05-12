@@ -129,7 +129,7 @@ export default function App() {
       phantom?: { solana?: { connect(o?: object): Promise<{ publicKey: { toString(): string } }> } }
     }).phantom?.solana
     if (!injected?.connect) {
-      setError('Phantom provider nije dostupan u ovom browseru.')
+      setError('Phantom provider is not available in this browser.')
       return
     }
     try {
@@ -137,7 +137,7 @@ export default function App() {
       const r = await injected.connect()
       setDeepLinkPub(r.publicKey.toString())
     } catch (e) {
-      setError((e as Error).message || 'Phantom connect nije uspeo')
+      setError((e as Error).message || 'Phantom connection failed')
     }
   }, [])
 
@@ -159,7 +159,7 @@ export default function App() {
       })()
       const pub = getSession()?.walletPub ?? null
 
-      setLoading('Potvrđujem transakciju...')
+      setLoading('Confirming transaction...')
       waitForSignature(connection, signature).then(() => {
         if (pending.op === 'delete') {
           if (pub) clearStored(pub)
@@ -470,7 +470,7 @@ export default function App() {
       return
     }
     try {
-      setLoading('Poništavam pasoš...')
+      setLoading('Deleting passport...')
       await invalidatePassport(wallet, connection)
       clearStored(effectivePubkey)
       setPassport(null)
@@ -604,7 +604,7 @@ export default function App() {
                 >
                   Connect Phantom
                 </button>
-                <p className="text-zinc-500 text-xs">Ako transakcija ne iskoči automatski, klikni connect pa pokušaj ponovo.</p>
+                <p className="text-zinc-500 text-xs">If the transaction does not appear automatically, click connect and try again.</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -753,7 +753,7 @@ export default function App() {
 
           {passportDeleted && !txHash && (
             <div className="mt-4 p-4 bg-emerald-950 border border-emerald-800 rounded-lg text-emerald-400 text-sm">
-              Pasoš je izbrisan. Možeš mintovati novi prolazeći kroz korake iznad.
+              Passport deleted. You can mint a new one by going through the steps above.
               <button
                 onClick={() => setPassportDeleted(false)}
                 className="ml-3 text-emerald-600 hover:text-emerald-400 text-xs"
