@@ -19,7 +19,7 @@ export async function signWithMetaMask(
   provider?: EthProvider,
 ): Promise<string> {
   const p = provider ?? window.ethereum
-  if (!p) throw new Error('Ethereum wallet nije pronađen')
+  if (!p) throw new Error('Ethereum wallet not found')
 
   const hexMessage = '0x' + Array.from(new TextEncoder().encode(message))
     .map(b => b.toString(16).padStart(2, '0'))
