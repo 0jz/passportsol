@@ -4,13 +4,6 @@ import { CAMPAIGN_PUBLIC_CONFIG } from '../config/campaign'
 
 const LIFI_SOLANA_CHAIN_ID = 1151111081099710
 
-// CORS-friendly public RPC fallbacks for LI.FI widget's internal balance checks
-const ETH_MAINNET_RPC = 'https://cloudflare-eth.com'
-const SOL_MAINNET_RPC =
-  import.meta.env.VITE_SOLANA_RPC_URL?.includes('devnet')
-    ? 'https://api.mainnet-beta.solana.com'
-    : (import.meta.env.VITE_SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com')
-
 const LiFiWidget = lazy(() =>
   import('@lifi/widget').then(m => ({ default: m.LiFiWidget }))
 )
@@ -31,7 +24,6 @@ export default function BridgeGateStep({
   const isFunded =
     solBalance !== null && solBalance >= CAMPAIGN_PUBLIC_CONFIG.minSolForClaim
 
-  // Poll balance every 12s — auto-unlocks Continue when bridge settles
   useEffect(() => {
     if (isFunded) return
     const id = setInterval(onBalanceRefresh, 12000)
@@ -56,14 +48,16 @@ export default function BridgeGateStep({
         address: solAddress,
         chainType: ChainType.SVM,
       },
-      // Provide CORS-friendly RPCs so widget can fetch balances & estimate gas
+      // Ankr free public RPCs — override widget defaults for balance reads
       rpcUrls: {
-        1: [ETH_MAINNET_RPC],                    // Ethereum mainnet
-        42161: ['https://arb1.arbitrum.io/rpc'], // Arbitrum
-        10:    ['https://mainnet.optimism.io'],   // Optimism
-        137:   ['https://polygon-rpc.com'],       // Polygon
-        8453:  ['https://mainnet.base.org'],      // Base
-        [LIFI_SOLANA_CHAIN_ID]: [SOL_MAINNET_RPC],
+        1:     ['https://rpc.ankr.com/eth'],        // Ethereum mainnet
+        42161: ['https://rpc.ankr.com/arbitrum'],   // Arbitrum
+        10:    ['https://rpc.ankr.com/optimism'],   // Optimism
+        137:   ['https://rpc.ankr.com/polygon'],    // Polygon
+        8453:  ['https://rpc.ankr.com/base'],       // Base
+        56:    ['https://rpc.ankr.com/bsc'],        // BNB Chain
+        43114: ['https://rpc.ankr.com/avalanche'],  // Avalanche
+        [LIFI_SOLANA_CHAIN_ID]: ['https://rpc.ankr.com/solana'],
       },
       variant: 'compact' as const,
     }),
@@ -77,7 +71,6 @@ export default function BridgeGateStep({
         pre-filled — no copy-paste needed.
       </p>
 
-      {/* LI.FI Widget — always open, no toggle */}
       <div
         className="rounded-xl overflow-hidden border border-zinc-800"
         style={{ minHeight: 420 }}
@@ -93,7 +86,6 @@ export default function BridgeGateStep({
         </Suspense>
       </div>
 
-      {/* Balance row */}
       <div className="flex items-center justify-between text-xs px-1">
         <span className="text-zinc-500">SOL balance</span>
         <div className="flex items-center gap-2">
@@ -112,7 +104,6 @@ export default function BridgeGateStep({
         </div>
       </div>
 
-      {/* Continue button — unlocks when funded */}
       <button
         onClick={onReady}
         disabled={!isFunded}
