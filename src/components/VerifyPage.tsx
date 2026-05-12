@@ -26,7 +26,7 @@ export default function VerifyPage() {
     setResult(null)
 
     if (isEthAddress(addr)) {
-      setInputError('Ovo je Ethereum adresa — Passport se čuva na Solana adresu. Unesi Solana (base58) adresu vlasnika.')
+      setInputError('This is an Ethereum address — the Passport is stored on a Solana address. Enter the Solana (base58) address of the owner.')
       return
     }
 
