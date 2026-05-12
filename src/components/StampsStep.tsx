@@ -155,7 +155,7 @@ export default function StampsStep({ passport, onDone, solAddress: solAddressPro
     setEventError(null)
     setEventStatus('idle')
     const attest = parseAttestation(input)
-    if (!attest) { setEventError('Unesi event atestaciju u JSON formatu'); return }
+    if (!attest) { setEventError('Enter event attestation in JSON format'); return }
     setEventStatus('verifying')
     const result = await verifyAttestation(attest, wallet.publicKey?.toBase58() ?? '')
     if (!result.ok) { setEventError(result.reason ?? 'Verifikacija neuspesna'); setEventStatus('error'); return }
