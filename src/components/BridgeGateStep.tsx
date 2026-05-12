@@ -8,10 +8,7 @@ const LiFiWidget = lazy(() =>
   import('@lifi/widget').then(m => ({ default: m.LiFiWidget }))
 )
 
-// Detect devnet from env variables
-const IS_DEVNET =
-  (import.meta.env.VITE_SOLANA_RPC_URL ?? '').includes('devnet') ||
-  (import.meta.env.VITE_SOLANA_RPC_FALLBACK ?? '').includes('devnet')
+const IS_DEVNET = import.meta.env.VITE_SOLANA_NETWORK === 'devnet'
 
 interface Props {
   solAddress: string
@@ -29,7 +26,6 @@ export default function BridgeGateStep({
   const isFunded =
     solBalance !== null && solBalance >= CAMPAIGN_PUBLIC_CONFIG.minSolForClaim
 
-  // Poll balance every 12s — auto-unlocks Continue when funded
   useEffect(() => {
     if (isFunded) return
     const id = setInterval(onBalanceRefresh, 12000)
@@ -39,7 +35,6 @@ export default function BridgeGateStep({
   return (
     <div className="space-y-4">
       {IS_DEVNET ? (
-        /* ── DEV MODE: no LI.FI widget, use devnet faucet ── */
         <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-5 space-y-4">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-widest text-amber-400 border border-amber-400/40 rounded px-2 py-0.5">
@@ -47,19 +42,16 @@ export default function BridgeGateStep({
             </span>
             <span className="text-xs text-zinc-400">Solana Devnet</span>
           </div>
-
           <p className="text-zinc-300 text-sm">
             You are on <strong className="text-amber-300">devnet</strong>. The LI.FI bridge
             is disabled — fund your wallet using the Solana devnet faucet.
           </p>
-
           <div className="space-y-1">
             <p className="text-xs text-zinc-500">Your devnet address</p>
             <p className="font-mono text-xs text-zinc-200 break-all bg-zinc-800 rounded-lg px-3 py-2 select-all">
               {solAddress}
             </p>
           </div>
-
           <a
             href={`https://faucet.solana.com/?address=${solAddress}`}
             target="_blank"
@@ -69,19 +61,16 @@ export default function BridgeGateStep({
           >
             Open Devnet Faucet →
           </a>
-
           <p className="text-[11px] text-zinc-600 text-center">
-            Request 1–2 SOL from the faucet, then wait for the balance check below.
+            Request 1-2 SOL from the faucet, then wait for the balance check below.
           </p>
         </div>
       ) : (
-        /* ── MAINNET: full LI.FI widget ── */
         <>
           <p className="text-zinc-400 text-xs">
             Bridge any token from any chain to SOL. Your destination address is
             pre-filled — no copy-paste needed.
           </p>
-
           <div
             className="rounded-xl overflow-hidden border border-zinc-800"
             style={{ minHeight: 420 }}
@@ -121,7 +110,6 @@ export default function BridgeGateStep({
                       8453:  ['https://rpc.ankr.com/base'],
                       56:    ['https://rpc.ankr.com/bsc'],
                       43114: ['https://rpc.ankr.com/avalanche'],
-                      [LIFI_SOLANA_CHAIN_ID]: ['https://rpc.ankr.com/solana'],
                     },
                   },
                   variant: 'compact' as const,
@@ -132,7 +120,6 @@ export default function BridgeGateStep({
         </>
       )}
 
-      {/* Balance row — works for both devnet and mainnet */}
       <div className="flex items-center justify-between text-xs px-1">
         <span className="text-zinc-500">SOL balance{IS_DEVNET ? ' (devnet)' : ''}</span>
         <div className="flex items-center gap-2">
@@ -151,7 +138,6 @@ export default function BridgeGateStep({
         </div>
       </div>
 
-      {/* Continue button — unlocks when funded */}
       <button
         onClick={onReady}
         disabled={!isFunded}
