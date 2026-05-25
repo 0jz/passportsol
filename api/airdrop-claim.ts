@@ -94,12 +94,13 @@ export default async function handler(req: any, res: any) {
     const recipient = new web3.PublicKey(solAddress)
     const passportScore = calculatePassportScore(score, stamps)
 
+    const devnetMode = isDevnetMode()
     const minScore = envNum('HUMAN_MIN_SCORE', 5)
-    const minWalletAgeDays = envNum('MIN_WALLET_AGE_DAYS', 1)
+    const minWalletAgeDays = devnetMode ? 0 : envNum('MIN_WALLET_AGE_DAYS', 1)
     if (!(passportScore > minScore)) return sendJson(res, 400, { error: `Score must be > ${minScore}` })
     if (walletAgeDays < minWalletAgeDays) return sendJson(res, 400, { error: `Wallet age must be >= ${minWalletAgeDays} day` })
 
-    if (!isDevnetMode()) {
+    if (!devnetMode) {
       const bridged = await verifyBridgedViaLifi(recipient.toBase58())
       if (!bridged) {
         return sendJson(res, 403, {

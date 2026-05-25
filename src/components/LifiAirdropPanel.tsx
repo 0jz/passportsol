@@ -123,7 +123,7 @@ export default function LifiAirdropPanel({
         </div>
         <p className="text-xs text-zinc-500 mt-0.5">
           {IS_DEVNET
-            ? 'Fund your wallet from the Solana devnet faucet, then claim the airdrop.'
+            ? 'No LI.FI step is required on devnet. Fund your wallet from the Solana faucet, then claim.'
             : 'Bridge from any chain, fund your Solana wallet, and claim the airdrop.'}
         </p>
       </div>

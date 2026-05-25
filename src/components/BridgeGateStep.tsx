@@ -27,7 +27,7 @@ export default function BridgeGateStep({
     solBalance !== null && solBalance >= CAMPAIGN_PUBLIC_CONFIG.minSolForClaim
 
   useEffect(() => {
-    if (isFunded) return
+    if (IS_DEVNET || isFunded) return
     const id = setInterval(onBalanceRefresh, 12000)
     return () => clearInterval(id)
   }, [isFunded, onBalanceRefresh])
@@ -151,7 +151,7 @@ export default function BridgeGateStep({
 
       <p className="text-[11px] text-zinc-600 text-center">
         {IS_DEVNET
-          ? 'Devnet balance is checked automatically every 12 seconds.'
+          ? 'After you use the faucet, click refresh to re-check your devnet balance.'
           : 'Already have SOL? Balance is checked automatically every 12 seconds.'}
       </p>
     </div>

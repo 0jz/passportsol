@@ -12,7 +12,7 @@ export interface AirdropEligibilityResult {
 
 export function evaluateAirdropEligibility(
   input: AirdropEligibilityInput,
-  thresholds: EligibilityThresholds = { humanMinScore: 5, minWalletAgeDays: 1, minSolForClaim: 0.000005 },
+  thresholds: EligibilityThresholds = { humanMinScore: 5, minWalletAgeDays: 0, minSolForClaim: 0.000005 },
 ): AirdropEligibilityResult {
   const reasons: string[] = []
 

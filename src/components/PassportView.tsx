@@ -117,6 +117,10 @@ export default function PassportView({
   const eventBadges = badges.filter(b => b.isEvent)
   const shortTx = (s: string) => `${s.slice(0, 6)}...${s.slice(-4)}`
   const eligibility = evaluateAirdropEligibility({ score: passportScore, walletAgeDays }, CAMPAIGN_PUBLIC_CONFIG)
+  const walletAgeLabel =
+    CAMPAIGN_PUBLIC_CONFIG.minWalletAgeDays === 1
+      ? '1 day'
+      : `${CAMPAIGN_PUBLIC_CONFIG.minWalletAgeDays} days`
 
   return (
     <div className="rounded-xl border border-zinc-700 bg-zinc-900 overflow-hidden" style={{ fontFamily: 'monospace' }}>
@@ -207,7 +211,9 @@ export default function PassportView({
         <div className="text-xs">
           <span className="text-zinc-500">Airdrop eligibility: </span>
           {eligibility.eligible ? (
-            <span style={{ color: '#14F195' }}>Eligible (score &gt; 5, wallet age &gt;= 1 day)</span>
+            <span style={{ color: '#14F195' }}>
+              Eligible (score &gt;= {CAMPAIGN_PUBLIC_CONFIG.humanMinScore}, wallet age &gt;= {walletAgeLabel})
+            </span>
           ) : (
             <span className="text-amber-400">{eligibility.reasons.join(' · ')}</span>
           )}
