@@ -3,6 +3,8 @@
 PassportSOL is a Solana reputation passport app.
 It helps a wallet collect identity signals, mint a compact on-chain passport, verify that passport publicly, and optionally use it for campaign or airdrop gating.
 
+This branch is configured for devnet-first testing.
+
 ## What the project does
 
 PassportSOL combines several pieces into one flow:
@@ -75,6 +77,8 @@ Important groups:
 - Gitcoin scorer credentials
 - GitHub OAuth client ID
 - backend claim configuration
+
+For this devnet branch, keep `VITE_SOLANA_NETWORK=devnet` unless you intentionally want to switch back to mainnet behavior.
 
 Important backend-only secrets:
 
