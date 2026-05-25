@@ -83,6 +83,7 @@ type Page = 'mint' | 'verify'
 type Step = 0 | 1 | 2 | 3 | 4
 
 export default function App() {
+  const isDevnet = import.meta.env.VITE_SOLANA_NETWORK !== 'mainnet'
   const { connection } = useConnection()
   const wallet = useWallet()
   const pubkeyStr = useMemo(() => wallet.publicKey?.toBase58() ?? null, [wallet.publicKey])
@@ -661,8 +662,14 @@ export default function App() {
               </div>
             </StepCard>
 
-            {/* Step 1 — LI.FI Bridge (mandatory entry point) */}
-            <StepCard number={1} title="Fund via LI.FI" done={bridgeComplete} active={step >= 1 && !bridgeComplete && !syncing} locked={step < 1 || syncing}>
+            {/* Step 1 — funding */}
+            <StepCard
+              number={1}
+              title={isDevnet ? 'Fund on Devnet' : 'Fund via LI.FI'}
+              done={bridgeComplete}
+              active={step >= 1 && !bridgeComplete && !syncing}
+              locked={step < 1 || syncing}
+            >
               {step >= 1 && !bridgeComplete && !syncing && effectivePubkey && (
                 <BridgeGateStep
                   solAddress={effectivePubkey}

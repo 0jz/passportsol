@@ -32,9 +32,14 @@ const wagmiConfig = createConfig({
 const queryClient = new QueryClient()
 
 function Providers({ children }: { children: React.ReactNode }) {
+  const solanaNetwork =
+    import.meta.env.VITE_SOLANA_NETWORK === 'mainnet'
+      ? WalletAdapterNetwork.Mainnet
+      : WalletAdapterNetwork.Devnet
+
   const endpoint = useMemo(
-    () => import.meta.env.VITE_SOLANA_RPC_URL || clusterApiUrl(WalletAdapterNetwork.Mainnet),
-    [],
+    () => import.meta.env.VITE_SOLANA_RPC_URL || clusterApiUrl(solanaNetwork),
+    [solanaNetwork],
   )
   const wallets = useMemo(() => [new LedgerWalletAdapter()], [])
 

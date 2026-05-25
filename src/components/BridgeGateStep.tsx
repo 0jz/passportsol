@@ -8,7 +8,7 @@ const LiFiWidget = lazy(() =>
   import('@lifi/widget').then(m => ({ default: m.LiFiWidget }))
 )
 
-const IS_DEVNET = import.meta.env.VITE_SOLANA_NETWORK === 'devnet'
+const IS_DEVNET = import.meta.env.VITE_SOLANA_NETWORK !== 'mainnet'
 
 interface Props {
   solAddress: string
@@ -43,8 +43,8 @@ export default function BridgeGateStep({
             <span className="text-xs text-zinc-400">Solana Devnet</span>
           </div>
           <p className="text-zinc-300 text-sm">
-            You are on <strong className="text-amber-300">devnet</strong>. The LI.FI bridge
-            is disabled — fund your wallet using the Solana devnet faucet.
+            You are on <strong className="text-amber-300">devnet</strong>. Funding uses the
+            Solana faucet here, so the LI.FI bridge is fully skipped.
           </p>
           <div className="space-y-1">
             <p className="text-xs text-zinc-500">Your devnet address</p>

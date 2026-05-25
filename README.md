@@ -3,6 +3,8 @@
 PassportSOL is a Solana reputation passport app.
 It helps a wallet collect identity signals, mint a compact on-chain passport, verify that passport publicly, and optionally use it for campaign or airdrop gating.
 
+Main is currently configured for devnet-first testing and skips LI.FI-specific funding requirements.
+
 ## What the project does
 
 PassportSOL combines several pieces into one flow:
@@ -30,7 +32,7 @@ In short: PassportSOL is a reputation and eligibility layer for Solana communiti
 The app currently includes:
 
 - Solana wallet onboarding
-- LI.FI-based funding entry point
+- devnet faucet based funding flow
 - Gitcoin-based reputation input
 - GitHub and name-service style stamps
 - wallet age and transaction-history scoring
@@ -47,7 +49,7 @@ The app currently includes:
 - `@solana/web3.js`
 - Solana Wallet Adapter
 - Wagmi + SIWE for Ethereum identity linking
-- LI.FI widget
+- Solana devnet faucet flow for funding
 - Vercel serverless API routes
 
 ## Running the project locally
@@ -155,7 +157,7 @@ src/config/              campaign-level public thresholds
 - duplicate-claim protection is still in-memory and not persistent
 - mobile flow is intentionally conservative while wallet return UX is stabilized
 - the claim route currently depends on server-side SPL token configuration
-- LI.FI and campaign gating logic should be treated as evolving MVP behavior
+- claim and campaign logic should be treated as evolving MVP behavior
 
 ## Deploying
 

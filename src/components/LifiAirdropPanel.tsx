@@ -12,6 +12,8 @@ const LiFiWidget = lazy(() =>
   import('@lifi/widget').then(m => ({ default: m.LiFiWidget }))
 )
 
+const IS_DEVNET = import.meta.env.VITE_SOLANA_NETWORK !== 'mainnet'
+
 interface Props {
   solAddress: string
   baseScore: number
@@ -110,13 +112,19 @@ export default function LifiAirdropPanel({
       {/* Header */}
       <div>
         <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-sm font-semibold text-white">LI.FI Airdrop Rail</p>
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={badgestyle}>
-            powered by LI.FI
-          </span>
+          <p className="text-sm font-semibold text-white">
+            {IS_DEVNET ? 'Devnet Airdrop Rail' : 'LI.FI Airdrop Rail'}
+          </p>
+          {!IS_DEVNET && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={badgestyle}>
+              powered by LI.FI
+            </span>
+          )}
         </div>
         <p className="text-xs text-zinc-500 mt-0.5">
-          Bridge from any chain, fund your Solana wallet, and claim the airdrop.
+          {IS_DEVNET
+            ? 'Fund your wallet from the Solana devnet faucet, then claim the airdrop.'
+            : 'Bridge from any chain, fund your Solana wallet, and claim the airdrop.'}
         </p>
       </div>
 
@@ -153,34 +161,53 @@ export default function LifiAirdropPanel({
         </div>
       </div>
 
-      {/* LI.FI Widget — shown when wallet needs funding */}
       {!hasEnoughSol && (
         <div className="space-y-2">
-          <button
-            onClick={() => setShowWidget(v => !v)}
-            className="w-full text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors"
-            style={{ background: showWidget ? '#27272a' : '#9945FF', color: '#fff' }}
-          >
-            {showWidget ? 'Hide LI.FI Widget' : 'Fund via LI.FI (cross-chain)'}
-          </button>
-
-          {showWidget && (
-            <div className="rounded-xl overflow-hidden border border-zinc-800" style={{ minHeight: 420 }}>
-              <Suspense
-                fallback={
-                  <div className="flex items-center justify-center h-40 text-zinc-500 text-sm">
-                    Loading LI.FI Widget...
-                  </div>
-                }
+          {IS_DEVNET ? (
+            <>
+              <a
+                href={`https://faucet.solana.com/?address=${solAddress}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full text-center text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors"
+                style={{ background: '#9945FF', color: '#fff' }}
               >
-                <LiFiWidget integrator="passportsol" config={widgetConfig} />
-              </Suspense>
-            </div>
-          )}
+                Open Devnet Faucet →
+              </a>
 
-          <p className="text-xs text-zinc-600 text-center">
-            Bridge ETH, USDC, MATIC and more to SOL in a few clicks
-          </p>
+              <p className="text-xs text-zinc-600 text-center">
+                Request devnet SOL, then refresh your balance and claim.
+              </p>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setShowWidget(v => !v)}
+                className="w-full text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors"
+                style={{ background: showWidget ? '#27272a' : '#9945FF', color: '#fff' }}
+              >
+                {showWidget ? 'Hide LI.FI Widget' : 'Fund via LI.FI (cross-chain)'}
+              </button>
+
+              {showWidget && (
+                <div className="rounded-xl overflow-hidden border border-zinc-800" style={{ minHeight: 420 }}>
+                  <Suspense
+                    fallback={
+                      <div className="flex items-center justify-center h-40 text-zinc-500 text-sm">
+                        Loading LI.FI Widget...
+                      </div>
+                    }
+                  >
+                    <LiFiWidget integrator="passportsol" config={widgetConfig} />
+                  </Suspense>
+                </div>
+              )}
+
+              <p className="text-xs text-zinc-600 text-center">
+                Bridge ETH, USDC, MATIC and more to SOL in a few clicks
+              </p>
+            </>
+          )}
         </div>
       )}
 
@@ -188,7 +215,7 @@ export default function LifiAirdropPanel({
       {hasEnoughSol && claimState !== 'claimed' && (
         <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 rounded-lg px-3 py-2">
           <span>&#10003;</span>
-          <span>Wallet funded — ready to claim your airdrop.</span>
+          <span>{IS_DEVNET ? 'Wallet funded on devnet — ready to claim.' : 'Wallet funded — ready to claim your airdrop.'}</span>
         </div>
       )}
 

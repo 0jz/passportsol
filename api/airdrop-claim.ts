@@ -1,5 +1,16 @@
 import { calculatePassportScore } from '../src/lib/scoring.js'
 
+function isDevnetMode(): boolean {
+  const explicitNetwork = (process.env.SOLANA_NETWORK ?? process.env.VITE_SOLANA_NETWORK ?? '').toLowerCase()
+  if (explicitNetwork === 'mainnet') return false
+  if (explicitNetwork === 'devnet') return true
+
+  const campaignId = (process.env.CAMPAIGN_ID ?? '').toLowerCase()
+  if (campaignId.includes('mainnet')) return false
+
+  return true
+}
+
 // LI.FI bridge verification
 // Checks that this Solana wallet has at least one completed bridge
 // via PassportSOL's LI.FI integrator tag before allowing a claim.
@@ -88,12 +99,13 @@ export default async function handler(req: any, res: any) {
     if (!(passportScore > minScore)) return sendJson(res, 400, { error: `Score must be > ${minScore}` })
     if (walletAgeDays < minWalletAgeDays) return sendJson(res, 400, { error: `Wallet age must be >= ${minWalletAgeDays} day` })
 
-    // LI.FI bridge verification
-    const bridged = await verifyBridgedViaLifi(recipient.toBase58())
-    if (!bridged) {
-      return sendJson(res, 403, {
-        error: 'You must bridge funds via LI.FI before claiming. Use the Fund via LI.FI step in the app.',
-      })
+    if (!isDevnetMode()) {
+      const bridged = await verifyBridgedViaLifi(recipient.toBase58())
+      if (!bridged) {
+        return sendJson(res, 403, {
+          error: 'You must bridge funds via LI.FI before claiming. Use the Fund via LI.FI step in the app.',
+        })
+      }
     }
 
     const campaignId = process.env.CAMPAIGN_ID ?? 'devnet-default'
