@@ -346,7 +346,8 @@ export default function App() {
   const step: Step =
     txHash ? 3 :
     passport && stampsReady ? 2 :
-    passport ? 1 : 0
+    passport ? 1 :
+    effectivePubkey ? 1 : 0
 
   const handleStampsDone = useCallback((newStamps: string[]) => {
     setCustomStamps(newStamps)
