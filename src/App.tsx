@@ -17,8 +17,6 @@ import StampsStep from './components/StampsStep'
 import SuccessCard from './components/SuccessCard'
 import VerifyPage from './components/VerifyPage'
 import AirdropClaimPanel from './components/AirdropClaimPanel'
-import FundingStep from './components/FundingStep'
-import { CAMPAIGN_PUBLIC_CONFIG } from './config/campaign'
 
 // ─── localStorage helpers ────────────────────────────────────────────────────
 
@@ -80,10 +78,9 @@ function systemBrowserUrl() {
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 type Page = 'mint' | 'verify'
-type Step = 0 | 1 | 2 | 3 | 4
+type Step = 0 | 1 | 2 | 3
 
 export default function App() {
-  const isDevnet = import.meta.env.VITE_SOLANA_NETWORK !== 'mainnet'
   const { connection } = useConnection()
   const wallet = useWallet()
   const pubkeyStr = useMemo(() => wallet.publicKey?.toBase58() ?? null, [wallet.publicKey])
@@ -123,7 +120,6 @@ export default function App() {
   const [claimState, setClaimState] = useState<'idle' | 'claiming' | 'claimed' | 'error'>('idle')
   const [claimTxHash, setClaimTxHash] = useState<string | null>(null)
   const [claimError, setClaimError] = useState<string | null>(null)
-  const [bridgeComplete, setBridgeComplete] = useState(false)
 
   const connectInsidePhantom = useCallback(async () => {
     const injected = (window as unknown as {
@@ -302,7 +298,6 @@ export default function App() {
       setError(null)
       setWalletAgeDays(0)
       setSolBalance(null)
-      setBridgeComplete(false)
       return
     }
 
@@ -318,10 +313,6 @@ export default function App() {
       .then(v => {
         const bal = v / LAMPORTS_PER_SOL
         setSolBalance(bal)
-        // Auto-skip bridge step if wallet is already funded
-        if (bal >= CAMPAIGN_PUBLIC_CONFIG.minSolForClaim) {
-          setBridgeComplete(true)
-        }
       })
       .catch(() => setSolBalance(null))
     getWalletAgeDays(effectivePubkey, connection)
@@ -353,10 +344,9 @@ export default function App() {
   }, [effectivePubkey, connection])
 
   const step: Step =
-    txHash ? 4 :
-    passport && stampsReady ? 3 :
-    passport ? 2 :
-    (wallet.connected || !!deepLinkPub) ? 1 : 0
+    txHash ? 3 :
+    passport && stampsReady ? 2 :
+    passport ? 1 : 0
 
   const handleStampsDone = useCallback((newStamps: string[]) => {
     setCustomStamps(newStamps)
@@ -644,7 +634,7 @@ export default function App() {
         <div className="max-w-lg mx-auto px-4 py-12">
           <div className="space-y-3">
             {/* Step 0 — wallet (shown as done, with disconnect option) */}
-            <StepCard number={0} title="Connect Solana Wallet" done={step >= 1} active={false}>
+            <StepCard number={0} title="Connect Solana Wallet" done={!!effectivePubkey} active={false}>
               <div className="flex flex-col gap-2">
                 {deepLinkPub ? (
                   <div className="flex items-center gap-2">
@@ -662,73 +652,50 @@ export default function App() {
               </div>
             </StepCard>
 
-            {/* Step 1 — funding */}
-            <StepCard
-              number={1}
-              title={isDevnet ? 'Fund on Devnet' : 'Fund Wallet'}
-              done={bridgeComplete}
-              active={step >= 1 && !bridgeComplete && !syncing}
-              locked={step < 1 || syncing}
-            >
-              {step >= 1 && !bridgeComplete && !syncing && effectivePubkey && (
-                <FundingStep
-                  solAddress={effectivePubkey}
-                  solBalance={solBalance}
-                  onReady={() => setBridgeComplete(true)}
-                  onBalanceRefresh={handleBalanceRefresh}
-                />
-              )}
-              {bridgeComplete && (
-                <p className="text-xs text-zinc-500">
-                  {solBalance !== null ? `${solBalance.toFixed(5)} SOL` : 'Funded'} — ready
-                </p>
-              )}
-            </StepCard>
-
             {/* Step 2 — optional ETH */}
-            <StepCard number={2} title="Link Ethereum Identity" badge="optional" done={step >= 2} active={bridgeComplete && step === 1 && !syncing} locked={!bridgeComplete || step < 1 || syncing}>
-              {bridgeComplete && step === 1 && (
+            <StepCard number={1} title="Link Ethereum Identity" badge="optional" done={step >= 1} active={!!effectivePubkey && !passport && !syncing} locked={!effectivePubkey || syncing}>
+              {!!effectivePubkey && !passport && !syncing && (
                 <EthStep
                   solanaAddress={effectivePubkey ?? wallet.publicKey?.toBase58() ?? ''}
                   onDone={setPassport}
                 />
               )}
-              {step > 1 && passport?.ethAddress && (
+              {step >= 1 && passport?.ethAddress && (
                 <p className="text-xs text-zinc-500 font-mono truncate">{passport.ethAddress}</p>
               )}
-              {step > 1 && passport && !passport.ethAddress && (
-                <p className="text-xs text-zinc-500">Skipped — no ETH data</p>
+              {step >= 1 && passport && !passport.ethAddress && (
+                <p className="text-xs text-zinc-500">Skipped - no ETH data</p>
               )}
             </StepCard>
 
-            {/* Step 3 — stamps */}
-            <StepCard number={3} title="Add Stamps" badge="optional" done={step >= 3} active={bridgeComplete && step === 2} locked={!bridgeComplete || step < 2}>
-              {bridgeComplete && step === 2 && passport && (
+            {/* Step 2 - stamps */}
+            <StepCard number={2} title="Add Stamps" badge="optional" done={step >= 2} active={step === 1} locked={step < 1}>
+              {step === 1 && passport && (
                 <>
                   <StampsStep passport={passport} onDone={handleStampsDone} solAddress={effectivePubkey} />
                   <button onClick={handleBackToEth} className="text-zinc-600 hover:text-zinc-400 text-xs py-1 transition-colors">
-                    ← Back
+                    {'<-'} Back
                   </button>
                 </>
               )}
-              {step > 2 && customStamps.length > 0 && (
+              {step >= 2 && customStamps.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {customStamps.map(s => (
                     <span key={s} className="text-xs px-2 py-0.5 rounded-full font-medium"
                       style={{ background: 'rgba(20,241,149,0.1)', color: '#14F195', border: '1px solid rgba(20,241,149,0.2)' }}>
-                      ✓ {s}
+                      + {s}
                     </span>
                   ))}
                 </div>
               )}
-              {step > 2 && customStamps.length === 0 && (
+              {step >= 2 && customStamps.length === 0 && (
                 <p className="text-xs text-zinc-500">Skipped</p>
               )}
             </StepCard>
 
-            {/* Step 4 — mint */}
-            <StepCard number={4} title="Mint Passport On-Chain" done={step >= 4} active={bridgeComplete && step === 3} locked={!bridgeComplete || step < 3}>
-              {bridgeComplete && step === 3 && !txHash && (
+            {/* Step 3 - mint */}
+            <StepCard number={3} title="Mint Passport On-Chain" done={step >= 3} active={step === 2} locked={step < 2}>
+              {step === 2 && !txHash && (
                 <div className="flex items-center gap-3">
                   {useDeepLink && readyToSign ? (
                     <button
@@ -736,7 +703,7 @@ export default function App() {
                       className="text-sm font-semibold px-4 py-2 rounded-lg"
                       style={{ background: '#9945FF', color: '#fff' }}
                     >
-                      Sign in Phantom →
+                      Sign in Phantom {'->'}
                     </button>
                   ) : (
                     <button
@@ -745,12 +712,12 @@ export default function App() {
                       className="disabled:opacity-50 text-black text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
                       style={{ background: '#14F195' }}
                     >
-                      {loading ?? 'Mint Passport →'}
+                      {loading ?? 'Mint Passport ->'}
                     </button>
                   )}
                   {!readyToSign && (
                     <button onClick={handleBackToStamps} className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors">
-                      ← Back
+                      {'<-'} Back
                     </button>
                   )}
                 </div>
@@ -905,4 +872,5 @@ function StepCard({
     </div>
   )
 }
+
 
