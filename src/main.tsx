@@ -16,20 +16,24 @@ import '@solana/wallet-adapter-react-ui/styles.css'
 import './index.css'
 import App from './App.tsx'
 
+const DEVNET_RPC_ENDPOINT = 'https://api.devnet.solana.com'
+
 function Providers({ children }: { children: React.ReactNode }) {
-  const solanaNetwork =
-    import.meta.env.VITE_SOLANA_NETWORK === 'mainnet'
-      ? WalletAdapterNetwork.Mainnet
-      : WalletAdapterNetwork.Devnet
+  const solanaNetwork = WalletAdapterNetwork.Devnet
+  const configuredRpc = import.meta.env.VITE_SOLANA_RPC_URL?.trim()
 
   const endpoint = useMemo(
-    () => import.meta.env.VITE_SOLANA_RPC_URL || clusterApiUrl(solanaNetwork),
-    [solanaNetwork],
+    () => (
+      configuredRpc && configuredRpc.toLowerCase().includes('devnet')
+        ? configuredRpc
+        : DEVNET_RPC_ENDPOINT || clusterApiUrl(solanaNetwork)
+    ),
+    [configuredRpc, solanaNetwork],
   )
   const wallets = useMemo(
     () => [
       new PhantomWalletAdapter(),
-      new SolflareWalletAdapter(),
+      new SolflareWalletAdapter({ network: WalletAdapterNetwork.Devnet }),
       new LedgerWalletAdapter(),
     ],
     [],

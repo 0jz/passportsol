@@ -1,5 +1,7 @@
 import { calculatePassportScore } from '../src/lib/scoring.js'
 
+const DEVNET_RPC_ENDPOINT = 'https://api.devnet.solana.com'
+
 function isDevnetMode(): boolean {
   const explicitNetwork = (process.env.SOLANA_NETWORK ?? process.env.VITE_SOLANA_NETWORK ?? '').toLowerCase()
   if (explicitNetwork === 'mainnet') return false
@@ -79,11 +81,14 @@ export default async function handler(req: any, res: any) {
     const claimKey = `${campaignId}:${recipient.toBase58()}`
     if (claimed.has(claimKey)) return sendJson(res, 409, { error: 'This wallet already claimed for this campaign' })
 
-    const rpc = process.env.SOLANA_RPC_URL
+    const configuredRpc = process.env.SOLANA_RPC_URL?.trim()
+    const rpc = configuredRpc && configuredRpc.toLowerCase().includes('devnet')
+      ? configuredRpc
+      : DEVNET_RPC_ENDPOINT
     const mintAddress = process.env.AIRDROP_TOKEN_MINT
     const treasurySecret = process.env.CLAIM_TREASURY_SECRET
     const airdropAmount = envNum('AIRDROP_AMOUNT', 10)
-    if (!rpc || !mintAddress || !treasurySecret) {
+    if (!mintAddress || !treasurySecret) {
       return sendJson(res, 500, { error: 'Missing server env configuration' })
     }
 
