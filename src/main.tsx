@@ -5,7 +5,11 @@ import { StrictMode, useMemo } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base'
-import { LedgerWalletAdapter } from '@solana/wallet-adapter-wallets'
+import {
+  LedgerWalletAdapter,
+  PhantomWalletAdapter,
+  SolflareWalletAdapter,
+} from '@solana/wallet-adapter-wallets'
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
 import { clusterApiUrl } from '@solana/web3.js'
 import '@solana/wallet-adapter-react-ui/styles.css'
@@ -22,7 +26,14 @@ function Providers({ children }: { children: React.ReactNode }) {
     () => import.meta.env.VITE_SOLANA_RPC_URL || clusterApiUrl(solanaNetwork),
     [solanaNetwork],
   )
-  const wallets = useMemo(() => [new LedgerWalletAdapter()], [])
+  const wallets = useMemo(
+    () => [
+      new PhantomWalletAdapter(),
+      new SolflareWalletAdapter(),
+      new LedgerWalletAdapter(),
+    ],
+    [],
+  )
 
   return (
     <ConnectionProvider endpoint={endpoint}>
