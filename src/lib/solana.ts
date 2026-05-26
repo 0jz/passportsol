@@ -20,6 +20,24 @@ const RETRYABLE_ERROR_PATTERNS = [
   'fetch failed',
 ]
 
+function normalizeWalletRpcError(e: unknown): Error {
+  const message = (e as { message?: string })?.message ?? String(e)
+  const lower = message.toLowerCase()
+
+  // In this devnet-only branch, a mainnet-beta 403 almost always means
+  // the wallet extension itself is still pointed at Mainnet.
+  if (
+    lower.includes('api.mainnet-beta.solana.com') ||
+    (lower.includes('403') && lower.includes('access forbidden'))
+  ) {
+    return new Error(
+      'Phantom wallet is still using Solana Mainnet. Switch Phantom to Devnet, then try minting again.',
+    )
+  }
+
+  return e instanceof Error ? e : new Error(message)
+}
+
 function isRetryableRpcError(e: unknown): boolean {
   const msg = (e as { message?: string })?.message?.toLowerCase() ?? String(e).toLowerCase()
   return RETRYABLE_ERROR_PATTERNS.some(p => msg.includes(p))
@@ -110,6 +128,8 @@ async function sendMemo(
   try {
     return await sendAndConfirm(connection)
   } catch (e) {
+    const normalized = normalizeWalletRpcError(e)
+    if (normalized.message !== ((e as { message?: string })?.message ?? String(e))) throw normalized
     if (!isRetryableRpcError(e)) throw e
     const fallback = fallbackConnectionFor(connection)
     if (!fallback) throw e

@@ -650,6 +650,9 @@ export default function App() {
                 {syncing && (
                   <p className="text-xs text-zinc-500 animate-pulse">Checking for existing passport...</p>
                 )}
+                <p className="text-[11px] text-amber-400">
+                  This branch mints on Solana devnet. Make sure your wallet is switched to Devnet.
+                </p>
               </div>
             </StepCard>
 
