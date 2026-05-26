@@ -16,8 +16,8 @@ import EthStep from './components/EthStep'
 import StampsStep from './components/StampsStep'
 import SuccessCard from './components/SuccessCard'
 import VerifyPage from './components/VerifyPage'
-import LifiAirdropPanel from './components/LifiAirdropPanel'
-import BridgeGateStep from './components/BridgeGateStep'
+import AirdropClaimPanel from './components/AirdropClaimPanel'
+import FundingStep from './components/FundingStep'
 import { CAMPAIGN_PUBLIC_CONFIG } from './config/campaign'
 
 // ─── localStorage helpers ────────────────────────────────────────────────────
@@ -344,7 +344,7 @@ export default function App() {
     }).finally(() => setSyncing(false))
   }, [effectivePubkey, connection])
 
-  // Refresh SOL balance on demand (called by LifiAirdropPanel polling + manual button)
+  // Refresh SOL balance on demand for the funding and claim panels.
   const handleBalanceRefresh = useCallback(() => {
     if (!effectivePubkey) return
     connection.getBalance(new PublicKey(effectivePubkey))
@@ -665,13 +665,13 @@ export default function App() {
             {/* Step 1 — funding */}
             <StepCard
               number={1}
-              title={isDevnet ? 'Fund on Devnet' : 'Fund via LI.FI'}
+              title={isDevnet ? 'Fund on Devnet' : 'Fund Wallet'}
               done={bridgeComplete}
               active={step >= 1 && !bridgeComplete && !syncing}
               locked={step < 1 || syncing}
             >
               {step >= 1 && !bridgeComplete && !syncing && effectivePubkey && (
-                <BridgeGateStep
+                <FundingStep
                   solAddress={effectivePubkey}
                   solBalance={solBalance}
                   onReady={() => setBridgeComplete(true)}
@@ -777,7 +777,7 @@ export default function App() {
                 solAddress={effectivePubkey}
               />
               {effectivePubkey && (
-                <LifiAirdropPanel
+                <AirdropClaimPanel
                   solAddress={effectivePubkey}
                   baseScore={passport.score}
                   stamps={passport.stamps}
