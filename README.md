@@ -1,178 +1,147 @@
 # PassportSOL
 
-PassportSOL is a Solana reputation passport app.
-It helps a wallet collect identity signals, mint a compact on-chain passport, verify that passport publicly, and optionally use it for campaign or airdrop gating.
+A Solana reputation passport: a wallet collects identity "stamps", mints a compact passport on-chain, and anyone can verify it — useful for gating airdrops and community campaigns against bots.
 
-Main is currently configured for devnet-first testing and skips LI.FI-specific funding requirements.
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
+![Solana](https://img.shields.io/badge/Solana-devnet-9945FF?logo=solana&logoColor=white)
+![Vercel](https://img.shields.io/badge/Deploy-Vercel-000000?logo=vercel&logoColor=white)
 
-## What the project does
+![PassportSOL banner](docs/brand/passportsol-twitter-banner.png)
 
-PassportSOL combines several pieces into one flow:
+**What you get:** connect a wallet, add proof that you're a real, active user (Gitcoin score, GitHub, ENS, SNS, SolanaID, wallet age, transaction history), and walk away with a passport score written to Solana that any app can check — plus a ready-made SPL token claim flow that only pays out to wallets that pass.
 
-- connect a Solana wallet
-- optionally link an Ethereum identity
-- collect stamps such as Gitcoin score, GitHub, ENS, SNS, SolanaID, wallet age, and activity
-- mint the resulting passport to Solana through a memo transaction
-- verify an address publicly on the `/verify` page
-- check airdrop readiness and claim an SPL token through the backend API
+## Features
 
-In short: PassportSOL is a reputation and eligibility layer for Solana communities and campaigns.
+- **Wallet onboarding** — Solana Wallet Adapter (Phantom etc.), with a devnet faucet step to cover fees.
+- **Reputation stamps** — Gitcoin Passport score, GitHub (OAuth device flow), ENS, SNS, SolanaID, wallet age and activity.
+- **Optional Ethereum link** — sign in with Ethereum (SIWE via Wagmi) to bring ETH identity into the passport.
+- **On-chain passport** — minted (and invalidated) as a Solana Memo-program transaction; no custom program to deploy.
+- **Public verify tab** — look up any Solana address and see its passport.
+- **Airdrop claim** — serverless route that checks eligibility and sends an SPL token from a treasury wallet.
 
-## Main user flow
+## How it works
 
-1. Connect a Solana wallet.
-2. Fund the wallet with enough SOL for network fees.
-3. Optionally link Ethereum identity data.
-4. Collect reputation stamps.
-5. Mint the passport on-chain.
-6. Open the verify view or continue to the claim flow.
+```mermaid
+flowchart LR
+    A[Connect Solana wallet] --> B[Fund with devnet SOL]
+    B --> C[Optional: link ETH via SIWE]
+    C --> D[Collect stamps<br/>Gitcoin, GitHub, ENS, SNS,<br/>SolanaID, wallet age, txs]
+    D --> E[Score = Gitcoin score + stamp bonuses]
+    E --> F[Mint passport<br/>Memo tx on Solana]
+    F --> G[Verify tab<br/>anyone can look it up]
+    F --> H[POST /api/airdrop-claim]
+    H -->|score &gt; HUMAN_MIN_SCORE,<br/>wallet age OK, not claimed| I[SPL token sent<br/>from treasury]
+```
 
-## Current product scope
+Stamp bonuses live in `src/lib/scoring.ts` (e.g. GitHub/ENS/SNS +5, 2y+ wallet +15, 100+ txs +12). The same scoring function runs in the browser and in the claim API.
 
-The app currently includes:
+On mainnet mode the claim route additionally requires a completed LI.FI bridge for the wallet; on devnet (the default) that check is skipped.
 
-- Solana wallet onboarding
-- devnet faucet based funding flow
-- Gitcoin-based reputation input
-- GitHub and name-service style stamps
-- wallet age and transaction-history scoring
-- on-chain passport minting and invalidation
-- public verify page by Solana address
-- serverless SPL airdrop claim route
+## Quickstart
 
-## Tech stack
-
-- React 18
-- TypeScript
-- Vite
-- Tailwind CSS
-- `@solana/web3.js`
-- Solana Wallet Adapter
-- Wagmi + SIWE for Ethereum identity linking
-- Solana devnet faucet flow for funding
-- Vercel serverless API routes
-
-## Running the project locally
-
-### Requirements
-
-- Node.js 18+
-- npm
-- a Solana wallet such as Phantom
-- optional Ethereum wallet for the ETH identity step
-
-### Install
+Requires Node.js 20 (see `.nvmrc`) and a Solana wallet such as Phantom set to **devnet**.
 
 ```bash
+git clone https://github.com/0jz/passportsol.git
+cd passportsol
 npm install
+cp .env.example .env        # then fill in the values below
+npm run dev                 # http://localhost:5173
 ```
 
-### Configure environment
+> `npm run dev` serves the frontend only. The `/api/*` routes (GitHub login, airdrop claim) are Vercel serverless functions — run them with the Vercel CLI (`vercel dev`) or on a Vercel deployment.
 
-Copy `.env.example` to `.env` and fill in the values you need.
+## Configuration
 
-Important groups:
+Copy `.env.example` to `.env`. `VITE_*` variables are bundled into the browser — **never put secrets in them**.
 
-- frontend RPC and wallet settings
-- Gitcoin scorer credentials
-- GitHub OAuth client ID
-- backend claim configuration
+### Frontend (`VITE_*`)
 
-Important backend-only secrets:
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `VITE_SOLANA_NETWORK` | No | devnet | Set to `mainnet` to switch cluster and enable mainnet-only rules. Anything else = devnet. |
+| `VITE_SOLANA_RPC_URL` | No | public cluster URL | Primary Solana RPC endpoint. |
+| `VITE_SOLANA_RPC_FALLBACK` | No | — | Backup RPC used if the primary fails. |
+| `VITE_GITCOIN_API_KEY` | For Gitcoin stamp | — | Gitcoin Passport API key. |
+| `VITE_GITCOIN_SCORER_ID` | For Gitcoin stamp | — | Gitcoin Passport scorer ID. |
+| `VITE_GITHUB_CLIENT_ID` | For GitHub stamp | — | Client ID of a GitHub OAuth app with device flow enabled (public value). |
+| `VITE_HUMAN_MIN_SCORE` | No | `5` | Score the UI requires for claim eligibility. Keep equal to `HUMAN_MIN_SCORE`. |
+| `VITE_MIN_WALLET_AGE_DAYS` | No | `1` | Minimum wallet age shown in the UI (forced to 0 on devnet). |
+| `VITE_MIN_SOL_FOR_CLAIM` | No | `0.002` | SOL balance the UI requires before claiming. |
 
-- `CLAIM_TREASURY_SECRET`
-- `SOLANA_RPC_URL`
-- `SOLANA_WS_URL`
+### Server (Vercel functions in `api/`)
 
-Never expose backend secrets as `VITE_*` variables.
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `SOLANA_RPC_URL` | Yes (claim) | — | RPC used by the claim route. |
+| `AIRDROP_TOKEN_MINT` | Yes (claim) | — | SPL token mint address to airdrop. |
+| `CLAIM_TREASURY_SECRET` | Yes (claim) | — | Treasury keypair secret that holds the tokens. **Secret.** |
+| `AIRDROP_AMOUNT` | No | `10` | Tokens per claim (in whole tokens; decimals read from the mint). |
+| `CAMPAIGN_ID` | No | `devnet-default` | Claim de-duplication key; containing `mainnet` implies mainnet mode. |
+| `SOLANA_NETWORK` | No | devnet | `mainnet` enables the LI.FI bridge requirement. |
+| `HUMAN_MIN_SCORE` | No | `5` | Claim requires passport score strictly greater than this. |
+| `MIN_WALLET_AGE_DAYS` | No | `1` | Minimum wallet age for claims (ignored on devnet). |
 
-### Start development
+`.env.example` also lists `VITE_SOLANA_WS_URL`, `SOLANA_WS_URL` and `GITHUB_CLIENT_ID`; the current code does not read them.
 
-```bash
-npm run dev
-```
+To create a devnet treasury and token mint, follow [docs/DEVNET_AIRDROP_SETUP.md](docs/DEVNET_AIRDROP_SETUP.md).
 
-Open the app at `http://localhost:5173`.
+## Usage
 
-### Production build
+1. Open the app, connect your wallet, and top up from the devnet faucet if prompted.
+2. Optionally link an Ethereum wallet, then add stamps (Gitcoin, GitHub, name services…).
+3. Click mint — your wallet signs one Memo transaction containing the passport.
+4. Use the **Verify** tab to check any Solana address.
+5. If eligible, claim the airdrop.
 
-```bash
-npm run build
-npm run preview
-```
+### API routes
 
-## Environment overview
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/github-device-code` | Proxies GitHub's OAuth device-code request. |
+| `POST` | `/api/github-token` | Proxies GitHub's device-flow token exchange. |
+| `POST` | `/api/airdrop-claim` | Body `{ solAddress, score, stamps, walletAgeDays }` → eligibility check + SPL transfer. |
+| `POST` | `/api/twitter-token` | Proxies Twitter OAuth2 token exchange (not used by the current UI). |
 
-### Frontend variables
+### Scripts
 
-- `VITE_SOLANA_RPC_URL`
-- `VITE_SOLANA_RPC_FALLBACK`
-- `VITE_SOLANA_WS_URL`
-- `VITE_GITCOIN_API_KEY`
-- `VITE_GITCOIN_SCORER_ID`
-- `VITE_GITHUB_CLIENT_ID`
-- `VITE_HUMAN_MIN_SCORE`
-- `VITE_MIN_WALLET_AGE_DAYS`
-- `VITE_MIN_SOL_FOR_CLAIM`
-
-### Backend variables
-
-- `SOLANA_RPC_URL`
-- `SOLANA_WS_URL`
-- `AIRDROP_TOKEN_MINT`
-- `AIRDROP_AMOUNT`
-- `CLAIM_TREASURY_SECRET`
-- `CAMPAIGN_ID`
-- `HUMAN_MIN_SCORE`
-- `MIN_WALLET_AGE_DAYS`
-
-## API routes
-
-- `POST /api/github-device-code`
-- `POST /api/github-token`
-- `POST /api/twitter-token`
-- `POST /api/airdrop-claim`
+| Command | What it does |
+|---|---|
+| `npm run dev` | Vite dev server |
+| `npm run build` | Type-check (`tsc -b`) and production build to `dist/` |
+| `npm run preview` | Serve the production build |
+| `npm run lint` | ESLint |
 
 ## Project structure
 
 ```text
-api/                     Vercel serverless functions
-docs/                    project notes, handoff docs, pitch assets, brand assets
-public/                  static files
-src/components/          app UI and flow steps
-src/lib/                 Solana, Gitcoin, LI.FI, scoring, and utility logic
-src/config/              campaign-level public thresholds
+api/                  Vercel serverless functions (GitHub OAuth proxy, airdrop claim)
+src/App.tsx           Main flow: wallet → stamps → mint → verify/claim
+src/components/       Flow steps (EthStep, StampsStep, PassportView, VerifyPage, …)
+src/lib/              Solana memo mint, scoring, Gitcoin, ENS/SNS, SIWE, LI.FI helpers
+src/config/campaign.ts  Public eligibility thresholds
+public/relay.html     Phantom deep-link return page (mobile)
+docs/                 Setup notes, handoff doc, pitch decks, brand assets
+vercel.json           SPA + /api rewrites
 ```
-
-## Important docs
-
-- [docs/PASSPORTSOL_HANDOFF.md](docs/PASSPORTSOL_HANDOFF.md)
-- [docs/DEVNET_AIRDROP_SETUP.md](docs/DEVNET_AIRDROP_SETUP.md)
-- [docs/LIFI_SIDETRACK_PLAN.md](docs/LIFI_SIDETRACK_PLAN.md)
-- [docs/pitch/README.md](docs/pitch/README.md)
-- [docs/brand/README.md](docs/brand/README.md)
-
-## Known limitations
-
-- duplicate-claim protection is still in-memory and not persistent
-- mobile flow is intentionally conservative while wallet return UX is stabilized
-- the claim route currently depends on server-side SPL token configuration
-- claim and campaign logic should be treated as evolving MVP behavior
 
 ## Deploying
 
-This repo is structured for Vercel:
+The repo is set up for Vercel: import it, add the environment variables above (server secrets **without** the `VITE_` prefix), and deploy — the frontend and `api/` ship together.
 
-1. import the repo into Vercel
-2. add the same environment variables from `.env`
-3. verify wallet callbacks and API settings
-4. deploy the frontend and `api/` routes together
+## Status & limitations
 
-## Collateral and brand assets
+- **Devnet-first.** Mainnet mode exists but is not the tested path.
+- The claim route trusts the score, stamps and wallet age **sent by the client** — fine for a demo, not sybil-proof.
+- Duplicate-claim protection is an in-memory `Set`; it resets on every cold start.
+- Mobile wallet flow is deliberately conservative while deep-link return UX is stabilized.
+- Treat campaign/claim logic as evolving MVP behaviour.
 
-Project collateral no longer needs to live in the repo root.
+More background: [handoff notes](docs/PASSPORTSOL_HANDOFF.md) · [LI.FI plan](docs/LIFI_SIDETRACK_PLAN.md) · [pitch assets](docs/pitch/README.md).
 
-- pitch decks and slide exports belong in `docs/pitch/`
-- logos and social images belong in `docs/brand/`
+## License
 
-If you add more presentation material later, keep it in those folders instead of the root directory.
+No license file is included yet — all rights reserved by the author until one is added.
