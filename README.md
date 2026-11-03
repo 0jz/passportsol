@@ -1,5 +1,7 @@
 # PassportSOL
 
+[![CI](https://github.com/0jz/passportsol/actions/workflows/ci.yml/badge.svg)](https://github.com/0jz/passportsol/actions/workflows/ci.yml)
+
 A Solana reputation passport: a wallet collects identity "stamps", mints a compact passport on-chain, and anyone can verify it — useful for gating airdrops and community campaigns against bots.
 
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
