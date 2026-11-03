@@ -13,6 +13,8 @@ A Solana reputation passport: a wallet collects identity "stamps", mints a compa
 
 ![PassportSOL banner](docs/brand/passportsol-twitter-banner.png)
 
+![passportsol screenshot](docs/screenshot.png)
+
 **What you get:** connect a wallet, add proof that you're a real, active user (Gitcoin score, GitHub, ENS, SNS, SolanaID, wallet age, transaction history), and walk away with a passport score written to Solana that any app can check — plus a ready-made SPL token claim flow that only pays out to wallets that pass.
 
 ## Features
