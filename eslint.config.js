@@ -12,11 +12,16 @@ export default defineConfig([
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
-      reactHooks.configs.flat.recommended,
+      reactHooks.configs['recommended-latest'],
       reactRefresh.configs.vite,
     ],
     languageOptions: {
       globals: globals.browser,
     },
+  },
+  {
+    // Entry point: mounts the app and intentionally exports nothing.
+    files: ['src/main.tsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
   },
 ])

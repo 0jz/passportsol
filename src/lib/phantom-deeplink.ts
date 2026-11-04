@@ -33,7 +33,7 @@ function getOrCreateKeypair(): DLKeypair {
   try {
     const s = localStorage.getItem(SK.kp)
     if (s) return JSON.parse(s)
-  } catch {}
+  } catch { /* no stored keypair; generate a fresh one */ }
   const kpRaw = nacl.box.keyPair()
   const kp: DLKeypair = { priv: bs58.encode(kpRaw.secretKey), pub: bs58.encode(kpRaw.publicKey) }
   localStorage.setItem(SK.kp, JSON.stringify(kp))

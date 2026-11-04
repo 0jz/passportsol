@@ -1,4 +1,12 @@
 import { calculatePassportScore } from '../src/lib/scoring.js'
+import { sanitizeClaimInput } from '../src/lib/claimInput.js'
+
+type ApiRequest = { method?: string; body?: unknown }
+type ApiResponse = {
+  statusCode: number
+  setHeader(name: string, value: string): void
+  end(body?: string): void
+}
 
 function isDevnetMode(): boolean {
   const explicitNetwork = (process.env.SOLANA_NETWORK ?? process.env.VITE_SOLANA_NETWORK ?? '').toLowerCase()
@@ -36,13 +44,6 @@ async function verifyBridgedViaLifi(solAddress: string): Promise<boolean> {
   }
 }
 
-type ClaimBody = {
-  solAddress?: string
-  score?: number
-  stamps?: string[]
-  walletAgeDays?: number
-}
-
 const claimed = new Set<string>()
 
 function envNum(name: string, fallback: number): number {
@@ -58,14 +59,14 @@ function parseSecretKey(secret: string): Uint8Array {
   return Uint8Array.from(arr)
 }
 
-function sendJson(res: any, status: number, payload: object) {
+function sendJson(res: ApiResponse, status: number, payload: object) {
   res.statusCode = status
   res.setHeader('Content-Type', 'application/json')
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.end(JSON.stringify(payload))
 }
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method === 'OPTIONS') {
     res.statusCode = 204
     res.setHeader('Access-Control-Allow-Origin', '*')
@@ -84,11 +85,8 @@ export default async function handler(req: any, res: any) {
     const web3 = await import('@solana/web3.js')
     const splToken = await import('@solana/spl-token')
 
-    const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {}) as ClaimBody
-    const solAddress = body.solAddress?.trim()
-    const score = Number(body.score ?? 0)
-    const stamps = Array.isArray(body.stamps) ? body.stamps : []
-    const walletAgeDays = Number(body.walletAgeDays ?? 0)
+    const input = sanitizeClaimInput(typeof req.body === 'string' ? JSON.parse(req.body) : req.body)
+    const { solAddress, score, stamps, walletAgeDays } = input
 
     if (!solAddress) return sendJson(res, 400, { error: 'Missing solAddress' })
     const recipient = new web3.PublicKey(solAddress)

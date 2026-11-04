@@ -36,7 +36,7 @@ function loadStored(addr: string): StoredData | null {
 
 function saveStored(addr: string, data: StoredData) {
   try { localStorage.setItem(storageKey(addr), JSON.stringify(data)) }
-  catch {}
+  catch { /* storage unavailable (private mode or quota) */ }
 }
 
 function clearStored(addr: string) {
@@ -281,7 +281,7 @@ export default function App() {
           ts: Math.floor(Date.now() / 1000),
         }
 
-    try { await ensureDevnetSol({ publicKey: feePayer } as Parameters<typeof ensureDevnetSol>[0], connection) } catch {}
+    try { await ensureDevnetSol({ publicKey: feePayer } as Parameters<typeof ensureDevnetSol>[0], connection) } catch { /* faucet top-up is best-effort */ }
 
     const { transaction, minContextSlot } = await buildMemoTransaction(feePayer, connection, memoData)
     const { signature } = await injected.signAndSendTransaction(transaction, {
