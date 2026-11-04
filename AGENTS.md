@@ -8,7 +8,7 @@ Solana reputation passport (React + Vite SPA) with Vercel serverless routes for 
 - API routes locally: `vercel dev` (Vercel CLI; not a project dependency)
 - Build + type-check: `npm run build` (`tsc -b && vite build`)
 - Lint: `npm run lint`
-- Tests: none exist.
+- Tests: `npm test` (Vitest, `tests/`; covers `scoring.ts`, `airdropEligibility.ts`, `claimInput.ts`).
 
 ## Where logic lives
 - `src/App.tsx` — whole user flow, `mint`/`verify` tabs (state, not URL routes), claim call.
@@ -26,7 +26,7 @@ Solana reputation passport (React + Vite SPA) with Vercel serverless routes for 
 
 ## Do not touch / commit
 - `.env*` (gitignored). Never move server secrets (`CLAIM_TREASURY_SECRET`) into `VITE_*`.
-- Treasury keypair files such as `treasury-devnet.json` (from `docs/DEVNET_AIRDROP_SETUP.md`) are **not** in `.gitignore` — never commit them.
+- Treasury keypair files such as `treasury-devnet.json` (from `docs/DEVNET_AIRDROP_SETUP.md`) are gitignored (`treasury*.json`, `*keypair*.json`); still never force-add them.
 - `docs/pitch/` (.pptx decks, slide JPGs) and `docs/brand/` (logos, banners) are collateral; keep new collateral there, not in the repo root.
 
 ## Gotchas

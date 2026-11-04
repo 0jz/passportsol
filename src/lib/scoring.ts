@@ -13,22 +13,23 @@ const STAMP_POINTS: Array<[RegExp, number]> = [
   [/^Event\?: /,        3],  // self-reported
 ]
 
-export function calculatePassportScore(gitcoinScore: number, stamps: string[]): number {
-  let bonus = 0
-  for (const stamp of stamps) {
-    for (const [pattern, points] of STAMP_POINTS) {
-      if (pattern.test(stamp)) { bonus += points; break }
-    }
-  }
-  return Math.round((gitcoinScore + bonus) * 10) / 10
-}
-
+/**
+ * Sum of bonus points for a list of stamps. Each stamp category counts at most
+ * once, so repeating a stamp (e.g. many "GitHub: x" entries) cannot inflate the
+ * score. Unknown stamps are worth nothing.
+ */
 export function bonusFromStamps(stamps: string[]): number {
+  const counted = new Set<number>()
   let bonus = 0
   for (const stamp of stamps) {
-    for (const [pattern, points] of STAMP_POINTS) {
-      if (pattern.test(stamp)) { bonus += points; break }
-    }
+    const index = STAMP_POINTS.findIndex(([pattern]) => pattern.test(stamp))
+    if (index === -1 || counted.has(index)) continue
+    counted.add(index)
+    bonus += STAMP_POINTS[index][1]
   }
   return bonus
+}
+
+export function calculatePassportScore(gitcoinScore: number, stamps: string[]): number {
+  return Math.round((gitcoinScore + bonusFromStamps(stamps)) * 10) / 10
 }

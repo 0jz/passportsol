@@ -117,6 +117,7 @@ To create a devnet treasury and token mint, follow [docs/DEVNET_AIRDROP_SETUP.md
 | `npm run dev` | Vite dev server |
 | `npm run build` | Type-check (`tsc -b`) and production build to `dist/` |
 | `npm run preview` | Serve the production build |
+| `npm test` | Vitest unit tests (scoring, eligibility, claim input sanitizing) |
 | `npm run lint` | ESLint |
 
 ## Project structure
@@ -139,7 +140,7 @@ The repo is set up for Vercel: import it, add the environment variables above (s
 ## Status & limitations
 
 - **Devnet-first.** Mainnet mode exists but is not the tested path.
-- The claim route trusts the score, stamps and wallet age **sent by the client** — fine for a demo, not sybil-proof.
+- The claim route trusts the score, stamps and wallet age **sent by the client** — fine for a demo, not sybil-proof. Inputs are bounded (clamped score, capped stamp count/length) and each stamp category counts once, but nothing is verified server-side yet.
 - Duplicate-claim protection is an in-memory `Set`; it resets on every cold start.
 - Mobile wallet flow is deliberately conservative while deep-link return UX is stabilized.
 - Treat campaign/claim logic as evolving MVP behaviour.
